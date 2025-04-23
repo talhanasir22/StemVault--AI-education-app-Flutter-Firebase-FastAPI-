@@ -5,6 +5,8 @@ import 'package:stem_vault/Core/apptext.dart';
 import 'package:stem_vault/features/Teacher%20home/Home%20Screens/my_courses.dart';
 import 'package:stem_vault/features/Teacher%20home/enrolled_students_page.dart';
 
+import '../../../Data/Firebase/student_services/firestore_services.dart';
+
 
 class HomePage extends StatefulWidget {
   final Function(int)? onNavIndexChange; // Callback function
@@ -14,8 +16,24 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-
 class _HomePageState extends State<HomePage> {
+  FirestoreServices db = FirestoreServices();
+  String? fetchedUsername;
+  String _userName = "loading...";
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _fetchUserName();
+  }
+  Future<void> _fetchUserName() async {
+    String? fetchedUsername = await db.getTeacherUsername();
+    if (fetchedUsername != null) {
+      setState(() {
+        _userName = fetchedUsername;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -208,7 +226,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Hi, Dr. Fawad",
+                  "Hi, $_userName",
                   style: AppText.mainHeadingTextStyle().copyWith(
                     color: AppColors.theme,
                   ),

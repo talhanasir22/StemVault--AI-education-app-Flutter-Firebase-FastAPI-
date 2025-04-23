@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
@@ -6,6 +7,7 @@ import 'package:stem_vault/Core/apptext.dart';
 import 'package:stem_vault/Shared/course_annoucement_banner.dart';
 import 'package:stem_vault/features/Teacher%20home/Home%20Screens/set_assignment.dart';
 import '../../../Core/appColors.dart';
+import '../UpdatedCoursePage.dart';
 class MyCourse extends StatefulWidget {
   const MyCourse({super.key});
 
@@ -16,34 +18,57 @@ class MyCourse extends StatefulWidget {
 class _MyCourseState extends State<MyCourse> {
   bool isLoading = true; // Control shimmer loading state
 
-  List<String> courseTitles = [
-    "Game Development",
-    "Flutter Basics",
-    "Web Development",
-    "Machine Learning",
-    "Data Science"
-  ];
+  List<String> courseTitles = [];
+  List<Color> cardColors = [];
+  List<String> courseCids = [];
 
-  List<Color> cardColors = [
+  final List<Color> availableColors = [
     Colors.blue.shade400,
     Colors.green.shade400,
     Colors.purple.shade400,
     Colors.orange.shade400,
     Colors.red.shade400,
+    Colors.teal.shade400,
+    Colors.indigo.shade400,
+    Colors.deepOrange.shade400,
+    Colors.pink.shade400,
+    Colors.amber.shade400,
   ];
 
-  List<double> progressValues = [0.6, 1.0, 0.4, 0.7, 0.5];
-  List<String> progressText = ["14/60", "48/60", "10/60", "60/60", "30/60"];
+
 
   @override
   void initState() {
     super.initState();
-    // Simulate a network delay for shimmer effect
-    Future.delayed(const Duration(seconds: 2), () {
+    fetchCourses();
+  }
+
+  Future<void> fetchCourses() async {
+    try {
+      var snapshot = await FirebaseFirestore.instance.collection('courses').get();
+
+      List<String> fetchedTitles = [];
+      List<Color> fetchedColors = [];
+      List<String> fetchedCids = [];
+
+      for (var doc in snapshot.docs) {
+        var data = doc.data();
+        if (data['courseTitle'] != null) {
+          fetchedTitles.add(data['courseTitle']);
+          fetchedColors.add((availableColors..shuffle()).first); // Random color
+          fetchedCids.add(data['cid']);
+        }
+      }
+
       setState(() {
+        courseTitles = fetchedTitles;
+        cardColors = fetchedColors;
+        courseCids = fetchedCids;
         isLoading = false;
       });
-    });
+    } catch (e) {
+      print("Error fetching courses: $e");
+    }
   }
 
   @override
@@ -91,7 +116,7 @@ class _MyCourseState extends State<MyCourse> {
                 itemBuilder: (context, index) {
                   return isLoading
                       ? _buildShimmerGridItem()
-                      : _buildGridItem(index);
+                      : _buildGridItem(context,index);
                 },
               ),
             ),
@@ -172,7 +197,12 @@ class _MyCourseState extends State<MyCourse> {
   }
 
   /// **Actual Grid Items**
-  Widget _buildGridItem(int index) {
+  Widget _buildGridItem(BuildContext context, int index) {
+    // Check for index bounds to avoid crash
+    if (index >= courseTitles.length || index >= cardColors.length) {
+      return const SizedBox(); // Return empty widget if index is out of range
+    }
+
     return Card(
       elevation: 10,
       shadowColor: Colors.black,
@@ -193,93 +223,106 @@ class _MyCourseState extends State<MyCourse> {
                   fontSize: 18,
                   color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
-           Row(
-             mainAxisAlignment: MainAxisAlignment.spaceAround,
-             children: [
-               SizedBox(
-                 height: 75,
-                 width: 95,
-                 child: Card(
-                   elevation: 10,
-                   color: AppColors.bgColor,
-                   child: Column(
-                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                     children: [
-                       Padding(
-                         padding: const EdgeInsets.only(left: 8.0),
-                         child: Text("Student Enrolled",style: AppText.mainSubHeadingTextStyle().copyWith(
-                           fontWeight: FontWeight.bold,
-                             color: AppColors.theme),),
-                       ),
-                       Center(child: Text("3",style: AppText.mainSubHeadingTextStyle().copyWith(
-                           fontWeight: FontWeight.bold,
-                           color: AppColors.theme),))
-                     ],
-                   ),
-
-                 ),
-               ),
-               SizedBox(
-                 height: 75,
-                 width: 95,
-                 child: Card(
-                   elevation: 10,
-                   color: AppColors.bgColor,
-                   child: Column(
-                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                     children: [
-                       Padding(
-                         padding: const EdgeInsets.only(left: 8.0),
-                         child: Text("Edit your course",style: AppText.mainSubHeadingTextStyle().copyWith(
-                             fontWeight: FontWeight.bold,
-                             color: AppColors.theme),),
-                       ),
-                       Center(child:Icon(Icons.settings,color: AppColors.theme,)),
-                     ],
-                   ),
-
-                 ),
-               ),
-               GestureDetector(
-                 onTap: (){
-                   Navigator.push(context,
-                   PageTransition(
-                     child: SetAssignment(),
-                     type: PageTransitionType.rightToLeft
-                   )
-                   );
-                 },
-                 child: SizedBox(
-                   height: 75,
-                   width: 95,
-                   child: Card(
-                     elevation: 10,
-                     color: AppColors.bgColor,
-                     child: Column(
-                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                       children: [
-                         Padding(
-                           padding: const EdgeInsets.only(left: 2.0,right: 2),
-                           child: Text("       Set\nAssignment",style: AppText.mainSubHeadingTextStyle().copyWith(
-                             fontSize: 12,
-                               fontWeight: FontWeight.bold,
-                               color: AppColors.theme),),
-                         ),
-                         Center(child: Icon(Icons.menu_book,color: AppColors.theme,))
-                       ],
-                     ),
-
-                   ),
-                 ),
-               ),
-             ],
-           ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSmallCard(
+                  title: "Student Enrolled",
+                  subtitle: "3",
+                ),
+                _buildSmallCard(
+                  title: "Edit your course",
+                  icon: Icons.settings,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      PageTransition(
+                        type: PageTransitionType.rightToLeft,
+                        child: UpdateCoursePage(
+                          cid: courseCids[index], // Passing the cid here
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildSmallCard(
+                  title: "Set\nAssignment",
+                  icon: Icons.menu_book,
+                  fontSize: 12,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      PageTransition(
+                        child: SetAssignment(),
+                        type: PageTransitionType.rightToLeft,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
-
   }
+
+// Helper function to reduce code repetition
+  Widget _buildSmallCard({
+    required String title,
+    String? subtitle,
+    IconData? icon,
+    double fontSize = 14,
+    VoidCallback? onTap,
+  }) {
+    return SizedBox(
+      height: 75,
+      width: 95,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Card(
+          elevation: 10,
+          color: AppColors.bgColor,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  title,
+                  style: AppText.mainSubHeadingTextStyle().copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: fontSize,
+                    color: AppColors.theme,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              if (subtitle != null)
+                Center(
+                  child: Text(
+                    subtitle,
+                    style: AppText.mainSubHeadingTextStyle().copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.theme,
+                    ),
+                  ),
+                )
+              else if (icon != null)
+                Center(
+                  child: Icon(
+                    icon,
+                    color: AppColors.theme,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 }

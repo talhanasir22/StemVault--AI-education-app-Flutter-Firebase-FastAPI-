@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 import '../../../../Core/appColors.dart';
 import '../../../../Core/apptext.dart';
@@ -11,14 +13,47 @@ class ChangePassword extends StatefulWidget {
 }
 
 class _ChangePasswordState extends State<ChangePassword> {
-  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      User? user = _auth.currentUser;
+
+      if (user != null) {
+        bool isGoogleUser =
+        user.providerData.any((provider) => provider.providerId == "google.com");
+
+        if (isGoogleUser) {
+          Fluttertoast.showToast(
+              msg: "You signed in with Google. Password change is not allowed.");
+        } else {
+          await user.updatePassword(_passwordController.text.trim());
+          Fluttertoast.showToast(msg: "Password updated successfully!");
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error: ${e.toString()}");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -26,44 +61,45 @@ class _ChangePasswordState extends State<ChangePassword> {
     return Scaffold(
       appBar: AppBar(
           backgroundColor: AppColors.theme,
-          leading: IconButton(onPressed: (){
-            Navigator.pop(context);
-          }, icon: Icon(Icons.arrow_back_ios))
-      ),
+          leading: IconButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: Icon(Icons.arrow_back_ios))),
       backgroundColor: AppColors.theme,
-      body: SingleChildScrollView( // Prevents overflow issues
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: Text("Change\nPassword?", style: AppText.authHeadingStyle()),
-            ),
+            Text("Change\nPassword?", style: AppText.authHeadingStyle()),
             SizedBox(height: 20),
 
             // Wrap TextFormField inside Form
             Form(
               key: _formKey,
               child: Center(
-                child: SizedBox(
-                  height: 40,
-                  width: MediaQuery.of(context).size.width * 0.87,
-                  child: TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: AppColors.textFieldColor,
-                      prefixIcon: Icon(Icons.email, color: AppColors.hintIconColor),
-                      hintText: "Enter a new password",
-                      hintStyle: AppText.hintTextStyle(),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.red),
-                      ),
+                child: TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppColors.textFieldColor,
+                    prefixIcon:
+                    Icon(Icons.lock, color: AppColors.hintIconColor),
+                    hintText: "Enter a new password",
+                    hintStyle: AppText.hintTextStyle(),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.red),
                     ),
-                    validator: (value) => (value == null || value.isEmpty) ? 'Please enter your email' : null,
                   ),
+                  validator: (value) =>
+                  (value == null || value.length < 8)
+                      ? 'Password must be at least 8 characters'
+                      : null,
                 ),
               ),
             ),
@@ -78,10 +114,11 @@ class _ChangePasswordState extends State<ChangePassword> {
                       children: [
                         TextSpan(
                           text: "* ",
-                          style: AppText.hintTextStyle().copyWith(color: AppColors.bgColor),
+                          style: AppText.hintTextStyle()
+                              .copyWith(color: AppColors.bgColor),
                         ),
                         TextSpan(
-                          text: "Password must be 8 digits long",
+                          text: "Password must be at least 8 characters.",
                           style: AppText.hintTextStyle(),
                         ),
                       ],
@@ -97,18 +134,15 @@ class _ChangePasswordState extends State<ChangePassword> {
                 width: MediaQuery.of(context).size.width * 0.87,
                 height: 40,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                    }
-                  },
+                  onPressed: _changePassword,
                   style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     backgroundColor: Colors.black,
                   ),
-                  child: _isLoading ? LoadingIndicator() : Text("Submit", style: AppText.buttonTextStyle()),
+                  child: _isLoading
+                      ? LoadingIndicator()
+                      : Text("Submit", style: AppText.buttonTextStyle()),
                 ),
               ),
             ),

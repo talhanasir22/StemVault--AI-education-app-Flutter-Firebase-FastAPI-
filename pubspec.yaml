@@ -40,10 +40,24 @@ dependencies:
   page_transition: ^2.2.1
   shimmer: ^3.0.0
   intl: ^0.20.2
+  firebase_core: ^3.12.1
+  fluttertoast: ^8.2.12
+  firebase_auth: ^5.5.1
+  google_sign_in: ^6.3.0
+  cloud_firestore: ^5.6.6
+  uuid: ^4.5.1
+  image_picker: ^1.1.2
+  permission_handler: ^12.0.0+1
+  firebase_storage: ^12.4.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: "^0.13.1"
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/Images/Logo.png"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

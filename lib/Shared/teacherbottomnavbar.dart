@@ -9,7 +9,7 @@ import '../features/Teacher home/course_page.dart';
 import '../features/Teacher home/enrolled_students_page.dart';
 
 class TeacherBottomNavBar extends StatefulWidget {
-  final int initialIndex; // New parameter to set index initially
+  final int initialIndex;
 
   const TeacherBottomNavBar({super.key, this.initialIndex = 0});
 

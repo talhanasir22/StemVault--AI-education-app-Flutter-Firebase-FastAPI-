@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
-import 'package:stem_vault/features/home/Account%20Screens/assignment_screen.dart';
-import 'package:stem_vault/features/home/Account%20Screens/grade_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/notification_setting_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/submission%20_screen.dart';
+import 'package:stem_vault/features/role_selection_page.dart';
 
+import '../../../Data/Firebase/student_services/firestore_services.dart';
 import 'Edit Profile Screens/Edit_profile_screen.dart';
 
 class AccountPage extends StatefulWidget {
@@ -18,6 +18,23 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
+  FirestoreServices db = FirestoreServices();
+  String? fetchedUsername;
+  String _userName = "loading...";
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _fetchUserName();
+  }
+  Future<void> _fetchUserName() async {
+    String? fetchedUsername = await db.getTeacherUsername();
+    if (fetchedUsername != null) {
+      setState(() {
+        _userName = fetchedUsername;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,7 +48,7 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             ListTile(
               title: Text(
-                "Hi, Fawad",
+                "Hi, $_userName",
                 style: AppText.mainHeadingTextStyle().copyWith(
                   color: AppColors.bgColor,
                 ),
@@ -93,7 +110,9 @@ class _AccountPageState extends State<AccountPage> {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(context,
+                            PageTransition(type: PageTransitionType.leftToRight,
+                            child: RoleSelectionPage()), (route)=>false);
                       },
                       child: Text("Logout"),
                     ),

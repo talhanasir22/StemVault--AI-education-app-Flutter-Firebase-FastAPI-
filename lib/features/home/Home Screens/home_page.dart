@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
-import 'package:stem_vault/Shared/bottomnavbar.dart';
+import 'package:stem_vault/Data/Firebase/student_services/firestore_services.dart';
 import 'package:stem_vault/features/home/Home%20Screens/my_courses.dart';
 
 import 'achievement_screen.dart';
@@ -16,8 +16,24 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-
 class _HomePageState extends State<HomePage> {
+  FirestoreServices db = FirestoreServices();
+  String? fetchedUsername;
+  String _userName = "loading...";
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _fetchUserName();
+  }
+  Future<void> _fetchUserName() async {
+    String? fetchedUsername = await db.getStudentUsername();
+    if (fetchedUsername != null) {
+      setState(() {
+        _userName = fetchedUsername;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -209,7 +225,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Hi, Fahad",
+                  "$_userName",
                   style: AppText.mainHeadingTextStyle().copyWith(
                     color: AppColors.theme,
                   ),

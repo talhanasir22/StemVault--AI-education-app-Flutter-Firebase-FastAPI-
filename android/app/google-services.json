@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "18235430541",
+    "project_id": "stem-vault",
+    "storage_bucket": "stem-vault.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:18235430541:android:d0b8cd16c69cbf0ec334c4",
+        "android_client_info": {
+          "package_name": "com.example.stem_vault"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvxYmZzFW-bAgjTLa_xPwBiayRXnlhbKA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

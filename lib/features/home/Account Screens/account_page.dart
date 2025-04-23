@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
+import 'package:stem_vault/features/auth/loginpage.dart';
 import 'package:stem_vault/features/home/Account%20Screens/assignment_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/grade_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/notification_setting_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/submission%20_screen.dart';
-
+import '../../../Data/Firebase/student_services/auth_services.dart';
+import '../../../Data/Firebase/student_services/firestore_services.dart';
 import 'Edit Profile Screens/Edit_profile_screen.dart';
 
 class AccountPage extends StatefulWidget {
@@ -16,8 +19,24 @@ class AccountPage extends StatefulWidget {
   @override
   State<AccountPage> createState() => _AccountPageState();
 }
-
 class _AccountPageState extends State<AccountPage> {
+  final _auth = AuthService();
+  FirestoreServices db = FirestoreServices();
+  String? fetchedUsername;
+  String _userName = "loading...";
+  @override
+  void initState() {
+    _fetchUserName();
+    super.initState();
+  }
+  Future<void> _fetchUserName() async {
+    String? fetchedUsername = await db.getStudentUsername();
+    if (fetchedUsername != null) {
+      setState(() {
+        _userName = fetchedUsername;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,7 +50,7 @@ class _AccountPageState extends State<AccountPage> {
           children: [
             ListTile(
               title: Text(
-                "Hi, Fahad",
+                "Hi, $_userName",
                 style: AppText.mainHeadingTextStyle().copyWith(
                   color: AppColors.bgColor,
                 ),
@@ -140,13 +159,53 @@ class _AccountPageState extends State<AccountPage> {
                   content: Text("Are you sure you want to log out?"),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () async {
+                        bool isSignedOut = false;
+
+                        // Show loading dialog
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => Center(child: CircularProgressIndicator()),
+                        );
+
+                        try {
+                          await _auth.signOut().then((_){
+                            isSignedOut = true;
+                          }).timeout(Duration(seconds: 5),onTimeout: (){
+                            isSignedOut = false;
+                            throw TimeoutException("Sign-out timed out");
+                          });
+                          Navigator.pop(context);
+                          if (isSignedOut) {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          } else {
+                            throw Exception("Sign-out failed");
+                          }
+                        } catch (e) {
+                          // Close loading dialog if error occurs
+                          Navigator.pop(context);
+
+                          // Show error message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e is TimeoutException ? "Sign-out timeout. Please try again." : "Sign-out failed. Please try again.")),
+                          );
+                        }
+                      },
                       child: Text("Cancel"),
                     ),
+
+
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(context,
+                            PageTransition(
+                              type: PageTransitionType.leftToRight,
+                              duration: Duration(milliseconds: 500),
+                              child: LoginPage(),
+                            ), (route) =>false);
+
                       },
                       child: Text("Logout"),
                     ),
