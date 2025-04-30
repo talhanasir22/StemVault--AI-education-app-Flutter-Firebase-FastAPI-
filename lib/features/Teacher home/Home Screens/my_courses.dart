@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
@@ -16,7 +17,7 @@ class MyCourse extends StatefulWidget {
 }
 
 class _MyCourseState extends State<MyCourse> {
-  bool isLoading = true; // Control shimmer loading state
+  bool isLoading = true;
 
   List<String> courseTitles = [];
   List<Color> cardColors = [];
@@ -45,6 +46,14 @@ class _MyCourseState extends State<MyCourse> {
 
   Future<void> fetchCourses() async {
     try {
+      // Get the current logged-in teacher's UID
+      String? teacherUid = FirebaseAuth.instance.currentUser?.uid;
+
+      if (teacherUid == null) {
+        print("Teacher UID not found");
+        return;
+      }
+
       var snapshot = await FirebaseFirestore.instance.collection('courses').get();
 
       List<String> fetchedTitles = [];
@@ -53,10 +62,12 @@ class _MyCourseState extends State<MyCourse> {
 
       for (var doc in snapshot.docs) {
         var data = doc.data();
-        if (data['courseTitle'] != null) {
-          fetchedTitles.add(data['courseTitle']);
-          fetchedColors.add((availableColors..shuffle()).first); // Random color
-          fetchedCids.add(data['cid']);
+        if (data['tid'] == teacherUid) { // <== MATCH teacherUid with course's tid
+          if (data['courseTitle'] != null) {
+            fetchedTitles.add(data['courseTitle']);
+            fetchedColors.add((availableColors..shuffle()).first); // Random color
+            fetchedCids.add(data['cid']);
+          }
         }
       }
 
@@ -70,6 +81,7 @@ class _MyCourseState extends State<MyCourse> {
       print("Error fetching courses: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +117,8 @@ class _MyCourseState extends State<MyCourse> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: GridView.builder(
+              child: isLoading
+                  ? GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 1,
                   crossAxisSpacing: 10,
@@ -114,9 +127,27 @@ class _MyCourseState extends State<MyCourse> {
                 ),
                 itemCount: 5,
                 itemBuilder: (context, index) {
-                  return isLoading
-                      ? _buildShimmerGridItem()
-                      : _buildGridItem(context,index);
+                  return _buildShimmerGridItem();
+                },
+              )
+                  : courseTitles.isEmpty
+                  ? Center(
+                child: Text(
+                  "No course has been created yet",
+                  style: AppText.hintTextStyle(),
+                  textAlign: TextAlign.center,
+                ),
+              )
+                  : GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 1,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 2,
+                ),
+                itemCount: courseTitles.length,
+                itemBuilder: (context, index) {
+                  return _buildGridItem(context, index);
                 },
               ),
             ),
@@ -256,7 +287,7 @@ class _MyCourseState extends State<MyCourse> {
                     Navigator.push(
                       context,
                       PageTransition(
-                        child: SetAssignment(),
+                        child: SetAssignment(cid: courseCids[index],),
                         type: PageTransitionType.rightToLeft,
                       ),
                     );

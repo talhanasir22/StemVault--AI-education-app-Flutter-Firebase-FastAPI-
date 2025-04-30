@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
@@ -14,31 +16,54 @@ class EnrolledStudentPage extends StatefulWidget {
 
 class _EnrolledStudentPageState extends State<EnrolledStudentPage> {
   bool _isLoading = true;
+  List<String> studentNames = [];
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration(seconds: 1), () {
+    fetchEnrolledStudents();
+  }
+
+  Future<void> fetchEnrolledStudents() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final coursesSnapshot = await FirebaseFirestore.instance.collection('courses').get();
+      List<String> enrolledSids = [];
+
+      for (var doc in coursesSnapshot.docs) {
+        if (doc['tid'] == uid) {
+          List<dynamic> students = doc['enrolledStudents'] ?? [];
+          enrolledSids.addAll(List<String>.from(students));
+        }
+      }
+
+      Set<String> uniqueSids = Set<String>.from(enrolledSids);
+      List<String> names = [];
+
+      for (var sid in uniqueSids) {
+        final studentSnapshot = await FirebaseFirestore.instance
+            .collection('students')
+            .where('sid', isEqualTo: sid)
+            .get();
+
+        for (var studentDoc in studentSnapshot.docs) {
+          names.add(studentDoc['userName']);
+        }
+      }
+
+      setState(() {
+        studentNames = names;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching enrolled students: $e');
       setState(() {
         _isLoading = false;
       });
-    });
+    }
   }
-
-  List<String> studentNames = [
-    "John Doe",
-    "Emma Smith",
-    "Michael Brown",
-    "Sophia Johnson",
-    "John Doe",
-    "Emma Smith",
-    "Michael Brown",
-    "Sophia Johnson",
-    "John Doe",
-    "Emma Smith",
-    "Michael Brown",
-    "Sophia Johnson"
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +162,7 @@ class _EnrolledStudentPageState extends State<EnrolledStudentPage> {
       child: SizedBox(
         height: 60,
         child: ElevatedButton(
-            onPressed: () {},
+            onPressed: onPressed,
             style: ElevatedButton.styleFrom(
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18))),

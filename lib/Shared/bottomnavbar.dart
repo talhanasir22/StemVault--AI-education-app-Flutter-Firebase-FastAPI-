@@ -65,7 +65,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
                     color: Colors.black12,
                     blurRadius: 6,
                     spreadRadius: 1,
-                    offset: Offset(0, -2), // Shadow on top of navbar
+                    offset: Offset(0, -2),
                   ),
                 ],
               ),

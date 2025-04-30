@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
+import 'package:stem_vault/Data/Firebase/student_services/student_performance_page.dart';
 import 'package:stem_vault/features/auth/loginpage.dart';
 import 'package:stem_vault/features/home/Account%20Screens/assignment_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/grade_screen.dart';
@@ -72,7 +73,11 @@ class _AccountPageState extends State<AccountPage> {
               child: SizedBox(
                 width: MediaQuery.of(context).size.width * 0.89,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(context , PageTransition(type: PageTransitionType.rightToLeft,
+                    child: StudentPerformancePage()
+                    ));
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.bgColor,
                     shape: RoundedRectangleBorder(

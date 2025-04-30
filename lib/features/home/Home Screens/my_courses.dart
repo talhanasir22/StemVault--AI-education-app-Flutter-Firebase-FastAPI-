@@ -1,8 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:stem_vault/Core/apptext.dart';
+import 'package:stem_vault/features/home/open_course_page.dart';
 import '../../../Core/appColors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MyCourse extends StatefulWidget {
   const MyCourse({super.key});
@@ -12,15 +16,11 @@ class MyCourse extends StatefulWidget {
 }
 
 class _MyCourseState extends State<MyCourse> {
-  bool isLoading = true; // Control shimmer loading state
+  bool isLoading = true;
 
-  List<String> courseTitles = [
-    "Game Development",
-    "Flutter Basics",
-    "Web Development",
-    "Machine Learning",
-    "Data Science"
-  ];
+  List<String> courseTitles = [];
+  List<String> courseIds = [];
+
 
   List<Color> cardColors = [
     Colors.blue.shade400,
@@ -36,13 +36,119 @@ class _MyCourseState extends State<MyCourse> {
   @override
   void initState() {
     super.initState();
-    // Simulate a network delay for shimmer effect
-    Future.delayed(const Duration(seconds: 2), () {
+    fetchEnrolledCourses();
+  }
+
+  Future<void> fetchEnrolledCourses() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      // Fetch all courses
+      QuerySnapshot coursesSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .get();
+
+      List<String> titles = [];
+      List<String> ids = [];
+      List<double> newProgressValues = [];
+      List<String> newProgressTexts = [];
+
+      for (var doc in coursesSnapshot.docs) {
+        final List<dynamic> enrolledStudents = doc['enrolledStudents'] ?? [];
+
+        if (enrolledStudents.contains(uid)) {
+          final String cid = doc['cid'];
+          titles.add(doc['courseTitle']);
+          ids.add(cid);
+
+          // Fetch lectures for this course
+          QuerySnapshot lecturesSnapshot = await FirebaseFirestore.instance
+              .collection('lectures')
+              .where('cid', isEqualTo: cid)
+              .get();
+
+          int totalLectures = lecturesSnapshot.docs.length;
+          int completedLectures = 0;
+          int incompleteLectures = 0;
+
+          // Fetch the student's progress document from the 'studentProgress' collection
+          DocumentSnapshot studentProgressDoc = await FirebaseFirestore.instance
+              .collection('studentProgress')
+              .doc('ReCozybMQQgBD7b4XCf02eyQS5g1')
+              .get();
+
+          if (studentProgressDoc.exists) {
+            // Fetch the 'lectures' sub-collection inside 'studentProgress'
+            QuerySnapshot studentLecturesSnapshot = await FirebaseFirestore.instance
+                .collection('studentProgress')
+                .doc('ReCozybMQQgBD7b4XCf02eyQS5g1')
+                .collection('lectures')
+                .get();
+
+            // Loop through each lecture in the 'lectures' sub-collection inside the student's progress document
+            for (var progressDoc in studentLecturesSnapshot.docs) {
+              final String lectureId = progressDoc.id;
+
+              // Check if the lecture exists in the main 'lectures' collection
+              var matchedLectures = lecturesSnapshot.docs.where(
+                    (lectureDoc) => lectureDoc.id == lectureId,
+              ).toList();
+
+              if (matchedLectures.isNotEmpty) {
+                bool isCompleted = progressDoc['isCompleted'] ?? false;
+                print('Lecture ID: $lectureId, isCompleted: $isCompleted');
+
+                if (isCompleted) {
+                  completedLectures++;
+                } else {
+                  incompleteLectures++;
+                }
+              } else {
+                print('No matching lecture found for lectureId: $lectureId');
+              }
+            }
+          } else {
+            print('No student progress found for UID: $uid');
+          }
+
+          // Calculate progress percentage
+          double progress = totalLectures > 0 ? completedLectures / totalLectures : 0.0;
+
+          // Update progress values and text
+          newProgressValues.add(progress);
+          newProgressTexts.add('$completedLectures/$totalLectures');
+        }
+      }
+
+      setState(() {
+        courseTitles = titles;
+        courseIds = ids;
+        progressValues = newProgressValues;
+        progressText = newProgressTexts;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching courses: $e");
       setState(() {
         isLoading = false;
       });
-    });
+    }
   }
+
+
+// Helper to chunk list into sublists of length n
+  List<List<String>> _chunkList(List<String> list, int size) {
+    List<List<String>> chunks = [];
+    for (var i = 0; i < list.length; i += size) {
+      chunks.add(
+        list.sublist(i, i + size > list.length ? list.length : i + size),
+      );
+    }
+    return chunks;
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +170,6 @@ class _MyCourseState extends State<MyCourse> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 20),
-
-          /// First Container (Shimmer Effect Applied)
           Center(
             child: Container(
               height: 100,
@@ -88,10 +192,7 @@ class _MyCourseState extends State<MyCourse> {
                   : _buildFirstContainerContent(),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          /// GridView (Shimmer Applied)
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
@@ -102,7 +203,7 @@ class _MyCourseState extends State<MyCourse> {
                   mainAxisSpacing: 10,
                   childAspectRatio: 3 / 4,
                 ),
-                itemCount: 5,
+                itemCount: isLoading ? 5 : courseTitles.length,
                 itemBuilder: (context, index) {
                   return isLoading
                       ? _buildShimmerGridItem()
@@ -116,7 +217,6 @@ class _MyCourseState extends State<MyCourse> {
     );
   }
 
-  /// **Shimmer Effect for First Container**
   Widget _buildShimmerFirstContainer() {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
@@ -134,7 +234,6 @@ class _MyCourseState extends State<MyCourse> {
     );
   }
 
-  /// **Actual Content for First Container**
   Widget _buildFirstContainerContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +262,6 @@ class _MyCourseState extends State<MyCourse> {
     );
   }
 
-  /// **Shimmer Effect for Grid Items**
   Widget _buildShimmerGridItem() {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
@@ -188,7 +286,7 @@ class _MyCourseState extends State<MyCourse> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(height: 20, width: 50, color: Colors.white),
-                  Icon(Icons.play_circle, size: 40, color: Colors.white),
+                  Icon(Icons.play_circle, color: Colors.white, size: 40)
                 ],
               ),
             ],
@@ -198,12 +296,11 @@ class _MyCourseState extends State<MyCourse> {
     );
   }
 
-  /// **Actual Grid Items**
   Widget _buildGridItem(int index) {
     return Card(
       elevation: 10,
       shadowColor: Colors.black,
-      color: cardColors[index],
+      color: cardColors[index % cardColors.length],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
@@ -221,21 +318,22 @@ class _MyCourseState extends State<MyCourse> {
               ),
             ),
             LinearProgressIndicator(
-              value: progressValues[index],
+              value: progressValues[index % progressValues.length],
               backgroundColor: Colors.grey[300],
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
             ),
             Text(
-              "Completed",
+              progressValues[index] == 1.0 ? "Completed" : "Incomplete",
               style: AppText.mainSubHeadingTextStyle().copyWith(
                 color: Colors.white,
               ),
             ),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  progressText[index],
+                  progressText[index % progressText.length],
                   style: AppText.mainSubHeadingTextStyle().copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -243,7 +341,16 @@ class _MyCourseState extends State<MyCourse> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    print(courseIds[index]);
+                    Navigator.push(
+                      context,
+                      PageTransition(
+                        type: PageTransitionType.rightToLeft,
+                        child: OpenCoursePage(cid: courseIds[index]),
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.play_circle, color: Colors.white, size: 40),
                 ),
               ],

@@ -12,7 +12,6 @@ import 'package:stem_vault/Shared/course_annoucement_banner.dart';
 import '../../Data/Firebase/student_services/course_model.dart';
 import '../../Data/Firebase/student_services/firestore_services.dart';
 import '../../Shared/LoadingIndicator.dart';
-import 'UpdatedCoursePage.dart';
 
 class CoursePage extends StatefulWidget {
   const CoursePage({super.key});
@@ -32,7 +31,7 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
 
   File? _selectedImage;
 
-  final List<String> _tags = ['Math', 'Science', 'Engineering', 'Technology'];
+  final List<String> _tags = ['MATH', 'SCIENCE', 'ENGINEERING', 'TECHNOLOGY'];
 
   Widget _buildTagDropdown() {
     return DropdownButtonFormField<String>(

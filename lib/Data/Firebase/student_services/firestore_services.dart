@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:stem_vault/Data/Firebase/student_services/assignment_model.dart';
 import 'package:stem_vault/Data/Firebase/student_services/student_model.dart';
 import 'package:stem_vault/Data/Firebase/student_services/teacher_model.dart';
 

@@ -4,9 +4,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
 import 'package:stem_vault/Shared/course_annoucement_banner.dart';
+import 'package:stem_vault/features/open_lecture_page.dart';
 import '../../Data/Firebase/student_services/firestore_services.dart';
 import '../../Data/Firebase/student_services/lecture_model.dart';
 import '../../Shared/LoadingIndicator.dart';
@@ -26,8 +28,11 @@ class _UpdateCoursePageState extends State<UpdateCoursePage> with SingleTickerPr
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   String courseId = FirebaseFirestore.instance.collection("courses").doc().id;
-  String lectureId = FirebaseFirestore.instance.collection("lectures").doc().id;
+
   File? _selectedVideo;
+  late String lectureUrl;
+  late String newLectureId;
+
 
  @override
   void initState() {
@@ -62,6 +67,9 @@ class _UpdateCoursePageState extends State<UpdateCoursePage> with SingleTickerPr
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        leading: IconButton(onPressed: (){
+          Navigator.pop(context);
+        }, icon: Icon(Icons.arrow_back_ios)),
         title: Text(
           "Tell us what do you \nwant to teach",
           style: AppText.mainHeadingTextStyle(),
@@ -80,23 +88,69 @@ class _UpdateCoursePageState extends State<UpdateCoursePage> with SingleTickerPr
               Container(
                 color: Colors.white,
                 height: 120,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 5,
-                    itemBuilder: (
-                        itemBuilder , index){
-                      return SizedBox(
-                        height: 100,
-                        width: 200,
-                        child: Card(
-                          color: Colors.black,
-                          child: Center(
-                            child: Icon(Icons.play_circle,size: 40,color: Colors.white,),
-                          ),
+                child: StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('lectures')
+        .where('cid', isEqualTo: widget.cid)
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: LoadingIndicator());
+      }
+      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        return const Center(child: Text('No lectures yet'));
+      }
+      return ListView.builder(
+        shrinkWrap: true,
+        scrollDirection: Axis.horizontal,
+        itemCount: snapshot.data!.docs.length,
+        itemBuilder: (context, index) {
+          var lecture = snapshot.data!.docs[index];
+          String newLectureId = lecture.id;
+          return SizedBox(
+            height: 100,
+            width: 200,
+            child: GestureDetector(
+              onTap: (){
+                Navigator.push(context, PageTransition(type: PageTransitionType.rightToLeft,
+                child: OpenLecturePage(title: '${lecture['lectureTitle']}', url: '${lecture['lectureUrl']}',
+                  description: '${lecture['lectureDescription']}', lecId: newLectureId,)
+                ));
+              },
+              child: Card(
+                color: Colors.black,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0), // Optional padding
+                      child: Text(
+                        'Title: ${lecture['lectureTitle']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold,color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Icon(
+                          Icons.play_circle,
+                          size: 40,
+                          color: Colors.white,
                         ),
-                      );
-                    }),
+                      ),
+                    ),
+                    SizedBox(height: 25,),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+              )
+
               ),
               SizedBox(height: 20,),
               Center(child: Text("Add new lecture",style: AppText.mainHeadingTextStyle().copyWith(fontSize: 19))),
@@ -134,7 +188,7 @@ class _UpdateCoursePageState extends State<UpdateCoursePage> with SingleTickerPr
                     if (_formKey.currentState!.validate()) {
                       if (_selectedVideo == null) {
                         Fluttertoast.showToast(
-                          msg: "Please select a course thumbnail.",
+                          msg: "Please select a videol.",
                           toastLength: Toast.LENGTH_SHORT,
                           gravity: ToastGravity.BOTTOM,
                           backgroundColor: Colors.red,
@@ -156,10 +210,11 @@ class _UpdateCoursePageState extends State<UpdateCoursePage> with SingleTickerPr
                         final ref = FirebaseStorage.instance.ref().child('lectureVideos/$fileName');
                         await ref.putFile(_selectedVideo!);
                         String imageUrl = await ref.getDownloadURL();
-
+                        DocumentReference newLectureRef = FirebaseFirestore.instance.collection('lectures').doc();
+                        newLectureId = newLectureRef.id;
                         LectureModel lecture = LectureModel(
                           cid: widget.cid,
-                          lid: lectureId,
+                          lid: newLectureId,
                           lectureTitle: _titleController.text.trim(),
                          lectureDescription: _descriptionController.text.trim(),
                           lectureUrl: imageUrl,

@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
 import 'package:stem_vault/Shared/course_annoucement_banner.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CoursePage extends StatefulWidget {
   const CoursePage({super.key});
@@ -16,63 +19,27 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
   String? selectedCategory;
   String? selectedDuration;
   late TabController _tabController;
+  List<String> tidList = [];
+  List<String> cidList = [];
+  List<String> courseTitleList = [];
+  int selectedTabIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
+  String searchQuery = '';
+  String sid = FirebaseAuth.instance.currentUser!.uid;
 
-  List<Color> colors = [
-    Colors.blue,
-    Colors.green,
-    Colors.red,
-    Colors.orange,
-    Colors.purple,
-    Colors.teal,
-    Colors.amber,
-    Colors.indigo,
-    Colors.cyan,
-    Colors.brown,
-  ];
   final List<String> categories = [
-    "SCIENCE",
-    "TECHNOLOGY",
-    "ENGINEERING",
-    "MATHEMATICS"
+    'SCIENCE', 'TECHNOLOGY', 'ENGINEERING','MATH'
   ];
 
   final List<String> durations = [
+    "0-2 Hours",
     "3-8 Hours",
     "8-14 Hours",
     "14-20 Hours",
     "20-24 Hours",
     "24-30 Hours"
   ];
-// 10 STEM-related courses
-  List<String> courses = [
-    "Game Development",
-    "3D Animation",
-    "Machine Learning",
-    "Data Science",
-    "Cybersecurity",
-    "Artificial Intelligence",
-    "Cloud Computing",
-    "Robotics",
-    "Mobile App Development",
-    "Web Development",
-  ];
 
-// 10 Instructor Names
-  List<String> instructors = [
-    "Dr. Alan Smith",
-    "Prof. Emily Johnson",
-    "Michael Brown",
-    "Sarah Williams",
-    "David Lee",
-    "Jessica Taylor",
-    "John Carter",
-    "Sophia Anderson",
-    "James Wilson",
-    "Olivia Martinez",
-  ];
-
-// 10 Course Durations (Hours) - Between 3 and 30 hours
-  List<int> courseDurations = [3, 5, 8, 10, 12, 14, 18, 20, 24, 30];
 
   @override
   void initState() {
@@ -82,6 +49,114 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     });
     super.initState();
   }
+
+  bool isEnrolling = false; // add this in your _CoursePageState
+
+  Future<void> enrollStudent(String courseId, String studentId) async {
+    setState(() {
+      isEnrolling = true;
+    });
+
+    try {
+      // Firestore references
+      DocumentReference courseRef =
+      FirebaseFirestore.instance.collection('courses').doc(courseId);
+      DocumentReference studentRef =
+      FirebaseFirestore.instance.collection('students').doc(studentId);
+
+      // Fetch documents
+      DocumentSnapshot courseSnapshot = await courseRef.get();
+      DocumentSnapshot studentSnapshot = await studentRef.get();
+
+      if (courseSnapshot.exists && studentSnapshot.exists) {
+        // Enroll student in course
+        List enrolledStudents = courseSnapshot['enrolledStudents'] ?? [];
+        if (!enrolledStudents.contains(studentId)) {
+          enrolledStudents.add(studentId);
+          await courseRef.update({'enrolledStudents': enrolledStudents});
+        }
+
+        // Get the 'cid' field from course document
+        String cid = courseSnapshot['cid'];
+
+        // Add 'cid' to student's enrolledCourses
+        List enrolledCourses = studentSnapshot['enrolledCourses'] ?? [];
+        if (!enrolledCourses.contains(cid)) {
+          enrolledCourses.add(cid);
+          await studentRef.update({'enrolledCourses': enrolledCourses});
+        }
+
+        Fluttertoast.showToast(
+          msg: "Student enrolled successfully",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
+
+        print('Student enrolled successfully');
+        setState(() {}); // refresh the page
+      } else {
+        print('Course or student not found');
+      }
+    } catch (e) {
+      print('Error enrolling student: $e');
+    } finally {
+      setState(() {
+        isEnrolling = false;
+      });
+    }
+  }
+
+
+
+
+  Future<List<Map<String, dynamic>>> fetchCoursesWithTeachers({String? query}) async {
+    String? selectedTag;
+    if (_tabController.index > 0) {
+      selectedTag = categories[_tabController.index - 1];
+    }
+
+    Query courseQuery = FirebaseFirestore.instance.collection('courses');
+    if (selectedTag != null) {
+      courseQuery = courseQuery.where('tag', isEqualTo: selectedTag);
+    }
+
+    final courseSnapshot = await courseQuery.get();
+    final teacherSnapshot = await FirebaseFirestore.instance.collection('teachers').get();
+
+    final teacherMap = {
+      for (var doc in teacherSnapshot.docs) doc['tid']: doc['userName'],
+    };
+
+    List<Map<String, dynamic>> mergedList = [];
+    cidList.clear();
+
+    for (var course in courseSnapshot.docs) {
+      final enrolledStudents = List<String>.from(course['enrolledStudents'] ?? []);
+
+      // Skip course if current student is already enrolled
+      if (enrolledStudents.contains(sid)) continue;
+
+      final courseTitle = course['courseTitle'].toString().toLowerCase();
+      if (query != null && query.isNotEmpty && !courseTitle.contains(query)) {
+        continue;
+      }
+
+      cidList.add(course.id);
+
+      mergedList.add({
+        'courseTitle': course['courseTitle'],
+        'thumbnailUrl': course['thumbnailUrl'],
+        'teacherName': teacherMap[course['tid']] ?? 'Unknown',
+      });
+    }
+
+    return mergedList;
+  }
+
+
+
 
   void _showFilterBottomSheet() {
     showModalBottomSheet(
@@ -255,6 +330,12 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
               width: MediaQuery.of(context).size.width * 0.90,
               height: 40,
               child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value; // simple case-insensitive search
+                  });
+                },
                 style: TextStyle(fontSize: 14),
                 textAlignVertical: TextAlignVertical.center,
                 decoration: InputDecoration(
@@ -299,8 +380,12 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     ),
                     child: ElevatedButton(
                       onPressed: () {
+                        setState(() {
+                          selectedTabIndex = index;
+                        });
                         _tabController.animateTo(index);
                       },
+
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _tabController.index == index
                             ? Colors.black
@@ -320,153 +405,121 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
           ),
           SizedBox(height: 15,),
           Expanded(
-            child: FutureBuilder(
-              future: Future.delayed(Duration(milliseconds: 1500)), // Simulated delay
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              key: ValueKey(selectedTabIndex),
+              future: fetchCoursesWithTeachers(query: searchQuery),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return ListView.builder(
-                    shrinkWrap: true,
-                    scrollDirection: Axis.vertical,
                     itemCount: 10,
                     itemBuilder: (context, index) {
-                      return SizedBox(
-                        height: 100,
-                        child: Card(
-                          elevation: 1,
-                          shadowColor: Colors.grey,
-                          child: ListTile(
-                            leading: Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Container(
-                                height: 80,
-                                width: 50,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: Colors.white, // Placeholder color
-                                ),
-                              ),
-                            ),
-                            title: Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Container(
-                                height: 10,
-                                width: 100,
-                                color: Colors.white, // Placeholder
-                              ),
-                            ),
-                            subtitle: Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    height: 10,
-                                    width: 80,
-                                    color: Colors.white, // Placeholder
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Container(
-                                    height: 10,
-                                    width: 40,
-                                    color: Colors.white, // Placeholder
-                                  ),
-                                ],
-                              ),
-                            ),
-                            trailing: Shimmer.fromColors(
-                              baseColor: Colors.grey[300]!,
-                              highlightColor: Colors.grey[100]!,
-                              child: Container(
-                                height: 30,
-                                width: 95,
-                                color: Colors.white, // Placeholder
-                              ),
+                      return Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: ListTile(
+                          leading: Container(
+                            height: 80,
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                          title: Container(height: 10, width: 100, color: Colors.white),
+                          subtitle: Container(height: 10, width: 150, color: Colors.white),
                         ),
                       );
                     },
                   );
                 }
 
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(child: Text('No courses found'));
+                }
+
+                final courseList = snapshot.data!;
+
                 return ListView.builder(
-                  shrinkWrap: true,
-                  scrollDirection: Axis.vertical,
-                  itemCount: 10,
+                  itemCount: courseList.length,
                   itemBuilder: (context, index) {
-                    return SizedBox(
-                      width: 50,
-                      height: 100,
-                      child: Card(
-                        color: AppColors.theme,
-                        elevation: 1,
-                        shadowColor: Colors.grey,
-                        child: ListTile(
-                          leading: Container(
-                            height: 80,
-                            width: 50,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              color: colors[index],
+                    var course = courseList[index];
+                    var title = course['courseTitle'];
+                    var imageUrl = course['thumbnailUrl'];
+                    var teacherName = course['teacherName'] ?? 'Unknown Teacher';
+
+                    return Card(
+                      color: AppColors.theme,
+                      elevation: 1,
+                      shadowColor: Colors.grey,
+                      child: ListTile(
+                        leading: Container(
+                          height: 80,
+                          width: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.grey[200],
+                            image: DecorationImage(
+                              image: NetworkImage(imageUrl),
+                              fit: BoxFit.cover,
                             ),
                           ),
-                          title: Text(
-                            courses[index],
-                            style: AppText.mainSubHeadingTextStyle().copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  instructors[index],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Color(0xffFFEBF0),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Color(0xffFFEBF0)),
-                                ),
-                                child: Text(
-                                  "${courseDurations[index]}h",
-                                  style: const TextStyle(
-                                    color: Color(0xffFF6905),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: SizedBox(
-                            height: 30,
-                            width: 95,
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.bgColor,
-                                padding: EdgeInsets.zero,
-                              ),
+                        ),
+                        title: Text(title,style:AppText.mainSubHeadingTextStyle().copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        )),
+                        subtitle:  Row(
+                          children: [
+                            Icon(Icons.person,size: 12,),
+                            SizedBox(width: 5,),
+                            Flexible(
                               child: Text(
-                                "Enroll Now",
-                                style: AppText.buttonTextStyle().copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w400,
-                                ),
+                                teacherName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                           Spacer(),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Color(0xffFFEBF0),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              width: 40,
+                              child: Text(' 0-2h',style: TextStyle(color: Color(0xffFF6905)),),
+                            )
+                          ],
+                        ),
+                        trailing: SizedBox(
+                          height: 30,
+                          width: 95,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              String studentId = sid;
+                              print("db db db"); // Replace with actual student ID]
+                              print(cidList[index]);
+                              print("sr sr sr");
+                              String courseId = cidList[index];  // The course's ID from the course list
+                              print("Tap tap tpa");
+                              print("Course id is: $courseId");
+                              print("Student id is: $studentId");
+                              await enrollStudent(courseId, studentId);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.bgColor,
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: Text(
+                              "Enroll Now",
+                              style: AppText.buttonTextStyle().copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
                         ),
-                      ),
+
+                      )
                     );
                   },
                 );
@@ -476,7 +529,11 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
 
 
 
-    ],
+
+
+
+
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stem_vault/Core/appColors.dart';
+import 'package:stem_vault/features/role_selection_page.dart';
 
 import '../Core/apptext.dart';
 import 'auth/loginpage.dart';
@@ -28,7 +29,7 @@ class _SplashPageState extends State<SplashPage> {
     await Future.delayed(const Duration(seconds: 2)); // Simulate splash delay
     if (onboardingComplete == true) {
       Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => LoginPage()));
+          context, MaterialPageRoute(builder: (context) => RoleSelectionPage()));
     } else {
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => Wrapper()));
