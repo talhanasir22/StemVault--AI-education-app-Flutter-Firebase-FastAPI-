@@ -31,8 +31,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   // Function to fetch all teacher usernames from Firestore
-  Future<List<String>> _fetchTeacherUsernames() async {
-    List<String> usernames = [];
+  Future<List<Map<String, dynamic>>> _fetchTeachers() async {
+    List<Map<String, dynamic>> teachers = [];
 
     try {
       // Fetch all users in the 'teachers' collection
@@ -42,30 +42,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
       // Loop through each teacher document
       for (var doc in teacherSnapshot.docs) {
-        print('Checking teacher doc ID: ${doc.id}');
-
-        // Safely extract data
         Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
 
-        if (data != null && data.containsKey('userName')) {
-          String? username = data['userName']?.toString().trim().toLowerCase();
-          if (username != null && username.isNotEmpty) {
-            usernames.add(username);
-            print("Added username to list: $username");
-          }
-        } else {
-          print("No userName field found in doc ID: ${doc.id}");
+        if (data != null && data.containsKey('userName') && data['userName'] != null) {
+          teachers.add({
+            'uid': doc.id,
+            'userName': data['userName'],
+          });
         }
       }
     } catch (e) {
       print("Error fetching teacher usernames: $e");
     }
 
-    return usernames;
+    return teachers;
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -87,8 +78,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       body: TabBarView(
         controller: _tabController,
         children: [
-          FutureBuilder<List<String>>(
-            future: _fetchTeacherUsernames(),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchTeachers(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: LoadingIndicator());
@@ -98,24 +89,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 return const Center(child: Text("No teachers found"));
               }
 
-              List<String> usernames = snapshot.data!;
+              List<Map<String, dynamic>> teachers = snapshot.data!;
 
               return ListView.separated(
-                itemCount: usernames.length,
+                itemCount: teachers.length,
                 itemBuilder: (context, index) {
+                  var teacher = teachers[index];
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
                         PageTransition(
                           type: PageTransitionType.rightToLeft,
-                          child: ChatRoomPage(name: usernames[index]),
+                          child: ChatRoomPage(name: teacher['userName'], teacherUid: teacher['uid']),
                         ),
                       );
                     },
                     child: ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.person)),
-                      title: Text(usernames[index]),
+                      title: Text(teacher['userName']),
                       trailing: Text(currentTime),
                     ),
                   );

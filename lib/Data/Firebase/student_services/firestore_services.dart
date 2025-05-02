@@ -145,6 +145,14 @@ class FirestoreServices {
     }
   }
 
+  Future<void> updateStudentTimeSpent(String studentId, int timeSpentInSeconds) async {
+    await FirebaseFirestore.instance
+        .collection('students')
+        .doc(studentId)
+        .update({
+      'timespendToday': timeSpentInSeconds,
+    });
+  }
 
   Future<bool> studentExists(String uid) async {
     DocumentSnapshot userDoc = await students

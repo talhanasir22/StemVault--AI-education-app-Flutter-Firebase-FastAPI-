@@ -7,7 +7,8 @@ import '../../Data/Firebase/student_services/message_model.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final String name; // this is teacher username
-  const ChatRoomPage({super.key, required this.name});
+  final String teacherUid;
+  const ChatRoomPage({super.key, required this.name, required this.teacherUid});
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -23,22 +24,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void initState() {
     super.initState();
     currentUserUid = FirebaseAuth.instance.currentUser!.uid;
+    teacherUid = widget.teacherUid;
     _loadOrCreateChatRoom();
   }
 
   Future<void> _loadOrCreateChatRoom() async {
-    final teacherSnapshot = await FirebaseFirestore.instance
-        .collection('teachers')
-        .where('userName', isEqualTo: widget.name.toLowerCase())
-        .get();
-
-    if (teacherSnapshot.docs.isEmpty) {
-      print('Teacher not found');
-      return;
-    }
-
-    teacherUid = teacherSnapshot.docs.first.id;
-
     QuerySnapshot chatRoomSnapshot = await FirebaseFirestore.instance
         .collection('chatRooms')
         .where('participants.$currentUserUid.uid', isEqualTo: currentUserUid)
@@ -69,21 +59,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     setState(() {});
   }
 
-void sendMessage() async {
-  if (_messageController.text.trim().isEmpty || chatRoomModel == null) return;
+  void sendMessage() async {
+    if (_messageController.text.trim().isEmpty || chatRoomModel == null) return;
 
-  // Get current user role
-  String? currentUserRole = chatRoomModel?.participants?[currentUserUid]?['role'];
-
-  // Get receiver UID
-  String? receiverUid = chatRoomModel?.participants?.keys.firstWhere((uid) => uid != currentUserUid);
-
-  // Get receiver role
-  String? receiverRole = chatRoomModel?.participants?[receiverUid]?['role'];
-
-  // Check if the sender is allowed to send messages to the receiver
-  if ((currentUserRole == 'student' && receiverRole == 'teacher') ||
-      (currentUserRole == 'teacher' && receiverRole == 'student')) {
     String messageId = const Uuid().v1();
     MessageModel newMessage = MessageModel(
       messageId: messageId,
@@ -109,11 +87,7 @@ void sendMessage() async {
     });
 
     _messageController.clear();
-  } else {
-    print('You are not allowed to send messages to this user.');
-    // Optionally, display an error message to the user
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +103,7 @@ void sendMessage() async {
                   .collection('chatRooms')
                   .doc(chatRoomModel!.chatRoomId)
                   .collection('messages')
-                  .orderBy('createDon', descending: false)
+                  .orderBy('createdOn', descending: false)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
