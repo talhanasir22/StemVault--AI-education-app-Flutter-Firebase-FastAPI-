@@ -260,7 +260,7 @@ class _LoginPageState extends State<LoginPage> {
                                     );
                                   }
                                 } else {
-                                  // If user doesn't exist in Firestore, save user data
+                                   // If user doesn't exist in Firestore, save user data
                                   StudentModel newUser = StudentModel(
                                     sid: user.uid,
                                     userName: user.displayName ?? "", // Handle null username

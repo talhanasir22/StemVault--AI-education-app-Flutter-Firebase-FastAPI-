@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/features/role_selection_page.dart';
-
-import '../Core/apptext.dart';
-import 'auth/loginpage.dart';
 import 'onboarding/wrapper.dart';
 
 class SplashPage extends StatefulWidget {

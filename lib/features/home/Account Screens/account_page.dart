@@ -12,6 +12,7 @@ import 'package:stem_vault/features/home/Account%20Screens/notification_setting_
 import 'package:stem_vault/features/home/Account%20Screens/submission%20_screen.dart';
 import '../../../Data/Firebase/student_services/auth_services.dart';
 import '../../../Data/Firebase/student_services/firestore_services.dart';
+import '../../role_selection_page.dart';
 import 'Edit Profile Screens/Edit_profile_screen.dart';
 
 class AccountPage extends StatefulWidget {
@@ -156,7 +157,8 @@ class _AccountPageState extends State<AccountPage> {
 
             }),
             _buildTextButton("Help",(){}),
-            _buildTextButton("Customer Support",(){}),_buildTextButton("Logout", () {
+            _buildTextButton("Customer Support",(){}),
+            _buildTextButton("Logout", () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -164,53 +166,15 @@ class _AccountPageState extends State<AccountPage> {
                   content: Text("Are you sure you want to log out?"),
                   actions: [
                     TextButton(
-                      onPressed: () async {
-                        bool isSignedOut = false;
-
-                        // Show loading dialog
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => Center(child: CircularProgressIndicator()),
-                        );
-
-                        try {
-                          await _auth.signOut().then((_){
-                            isSignedOut = true;
-                          }).timeout(Duration(seconds: 5),onTimeout: (){
-                            isSignedOut = false;
-                            throw TimeoutException("Sign-out timed out");
-                          });
-                          Navigator.pop(context);
-                          if (isSignedOut) {
-                            Navigator.pushReplacementNamed(context, '/login');
-                          } else {
-                            throw Exception("Sign-out failed");
-                          }
-                        } catch (e) {
-                          // Close loading dialog if error occurs
-                          Navigator.pop(context);
-
-                          // Show error message
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(e is TimeoutException ? "Sign-out timeout. Please try again." : "Sign-out failed. Please try again.")),
-                          );
-                        }
-                      },
+                      onPressed: () => Navigator.pop(context),
                       child: Text("Cancel"),
                     ),
-
-
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
                         Navigator.pushAndRemoveUntil(context,
-                            PageTransition(
-                              type: PageTransitionType.leftToRight,
-                              duration: Duration(milliseconds: 500),
-                              child: LoginPage(),
-                            ), (route) =>false);
-
+                            PageTransition(type: PageTransitionType.leftToRight,
+                                child: RoleSelectionPage()), (route)=>false);
                       },
                       child: Text("Logout"),
                     ),

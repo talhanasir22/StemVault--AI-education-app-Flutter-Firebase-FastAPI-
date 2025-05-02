@@ -242,7 +242,7 @@ class _MyCourseState extends State<MyCourse> {
         const SizedBox(height: 5),
         RichText(
           text: TextSpan(
-            text: "35",
+            text: "0",
             style: AppText.mainHeadingTextStyle(),
             children: [
               TextSpan(
@@ -254,7 +254,7 @@ class _MyCourseState extends State<MyCourse> {
         ),
         const SizedBox(height: 5),
         LinearProgressIndicator(
-          value: 0.6,
+          value: 0.0,
           backgroundColor: Colors.grey[300],
           valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
         ),

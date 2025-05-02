@@ -96,7 +96,8 @@ class _AccountPageState extends State<AccountPage> {
               );
             }),
             _buildTextButton("Help",(){}),
-            _buildTextButton("Customer Support",(){}),_buildTextButton("Logout", () {
+            _buildTextButton("Customer Support",(){}),
+            _buildTextButton("Logout", () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
