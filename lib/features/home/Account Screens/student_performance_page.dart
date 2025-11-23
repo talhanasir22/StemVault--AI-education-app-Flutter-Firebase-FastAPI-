@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:stem_vault/Core/appColors.dart';
-import '../../../Data/Firebase/student_services/course_perfornance_model.dart';
+import '../../../Data/Firebase/student_services/course_performance_model.dart';
 
 class StudentPerformancePage extends StatefulWidget {
   final String? sid;
