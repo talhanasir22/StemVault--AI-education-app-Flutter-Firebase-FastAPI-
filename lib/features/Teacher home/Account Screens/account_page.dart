@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
@@ -9,6 +11,7 @@ import 'package:stem_vault/features/role_selection_page.dart';
 
 import '../../../Data/Firebase/student_services/firestore_services.dart';
 import 'Edit Profile Screens/Edit_profile_screen.dart';
+import 'my_quizzes_screen.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -27,6 +30,7 @@ class _AccountPageState extends State<AccountPage> {
     super.initState();
     _fetchUserName();
   }
+
   Future<void> _fetchUserName() async {
     String? fetchedUsername = await db.getTeacherUsername();
     if (fetchedUsername != null) {
@@ -35,6 +39,7 @@ class _AccountPageState extends State<AccountPage> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,7 +73,7 @@ class _AccountPageState extends State<AccountPage> {
             const SizedBox(height: 20),
 
             /// User-friendly prioritized buttons
-            _buildTextButton("Edit Profile",(){
+            _buildTextButton("Edit Profile", () {
               Navigator.push(
                 context,
                 PageTransition(
@@ -77,7 +82,7 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               );
             }),
-            _buildTextButton("Change Notification Settings",(){
+            _buildTextButton("Change Notification Settings", () {
               Navigator.push(
                 context,
                 PageTransition(
@@ -86,7 +91,7 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               );
             }),
-            _buildTextButton("Submissions by students",(){
+            _buildTextButton("Submissions by students", () {
               Navigator.push(
                 context,
                 PageTransition(
@@ -95,33 +100,50 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               );
             }),
-            _buildTextButton("Help",(){}),
-            _buildTextButton("Customer Support",(){}),
-            _buildTextButton("Logout", () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text("Confirm Logout"),
-                  content: Text("Are you sure you want to log out?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text("Cancel"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushAndRemoveUntil(context,
-                            PageTransition(type: PageTransitionType.leftToRight,
-                            child: RoleSelectionPage()), (route)=>false);
-                      },
-                      child: Text("Logout"),
-                    ),
-                  ],
+            _buildTextButton("Created Quizzes", () {
+              Navigator.push(
+                context,
+                PageTransition(
+                  type: PageTransitionType.rightToLeft,
+                  child: MyQuizzesScreen(),
                 ),
               );
             }),
-
+            _buildTextButton("Help", () {}),
+            _buildTextButton("Customer Support", () {}),
+            _buildTextButton("Logout", () {
+              showDialog(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      title: Text("Confirm Logout"),
+                      content: Text("Are you sure you want to log out?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await FirebaseAuth.instance.signOut();
+                            GoogleSignIn googleSignIn = GoogleSignIn();
+                            await googleSignIn.signOut();
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              PageTransition(
+                                type: PageTransitionType.leftToRight,
+                                child: RoleSelectionPage(),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: Text("Logout"),
+                        ),
+                      ],
+                    ),
+              );
+            }),
           ],
         ),
       ),
@@ -140,18 +162,11 @@ class _AccountPageState extends State<AccountPage> {
         children: [
           Text(
             text,
-            style: AppText.mainSubHeadingTextStyle().copyWith(
-              fontSize: 16,
-            ),
+            style: AppText.mainSubHeadingTextStyle().copyWith(fontSize: 16),
           ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 20,
-            color: Colors.grey,
-          ),
+          const Icon(Icons.arrow_forward_ios, size: 20, color: Colors.grey),
         ],
       ),
     );
   }
-
 }

@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:stem_vault/Core/appColors.dart';
 import 'package:stem_vault/Core/apptext.dart';
 import 'package:stem_vault/features/home/Account%20Screens/student_performance_page.dart';
 import 'package:stem_vault/features/auth/loginpage.dart';
 import 'package:stem_vault/features/home/Account%20Screens/assignment_screen.dart';
+import 'package:stem_vault/features/home/Account%20Screens/enrolled_courses_page.dart';
 import 'package:stem_vault/features/home/Account%20Screens/grade_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/notification_setting_screen.dart';
 import 'package:stem_vault/features/home/Account%20Screens/submission%20_screen.dart';
@@ -144,6 +146,15 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               );
             }),
+            _buildTextButton("Enrolled Courses",(){
+              Navigator.push(
+                context,
+                PageTransition(
+                  type: PageTransitionType.rightToLeft,
+                  child: EnrolledCoursesPage(),
+                ),
+              );
+            }),
             _buildTextButton("Grades",(){
               Navigator.push(
                 context,
@@ -170,8 +181,11 @@ class _AccountPageState extends State<AccountPage> {
                       child: Text("Cancel"),
                     ),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async{
                         Navigator.pop(context);
+                        await _auth.signOut();
+                         GoogleSignIn googleSignIn = GoogleSignIn();
+                          await googleSignIn.signOut();
                         Navigator.pushAndRemoveUntil(context,
                             PageTransition(type: PageTransitionType.leftToRight,
                                 child: RoleSelectionPage()), (route)=>false);

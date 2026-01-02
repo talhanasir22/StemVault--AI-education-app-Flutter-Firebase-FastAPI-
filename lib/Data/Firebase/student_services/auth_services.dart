@@ -157,6 +157,7 @@ class AuthService {
   // Google Sign-In Handler
   Future<User?> studentSignInWithGoogle() async {
     try {
+      
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {

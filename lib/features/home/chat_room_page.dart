@@ -57,6 +57,29 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
 
     setState(() {});
+    // Mark unseen incoming messages as seen when opening the chat
+    await _markAllMessagesSeen();
+  }
+
+  Future<void> _markAllMessagesSeen() async {
+    if (chatRoomModel == null) return;
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('chatRooms')
+          .doc(chatRoomModel!.chatRoomId)
+          .collection('messages')
+          .where('seen', isEqualTo: false)
+          .get();
+
+      for (var doc in query.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['sender'] != currentUserUid) {
+          await doc.reference.update({'seen': true});
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   void sendMessage() async {
@@ -110,24 +133,52 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
                 List<DocumentSnapshot> docs = snapshot.data!.docs;
 
+                // messages are marked seen when chat opens
+
                 return ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    MessageModel message = MessageModel.fromMap(docs[index].data() as Map<String, dynamic>);
+                    final doc = docs[index];
+                    MessageModel message = MessageModel.fromMap(doc.data() as Map<String, dynamic>);
                     bool isMe = message.sender == currentUserUid;
+                    bool seen = message.seen ?? false;
 
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(message.text ?? '', style: TextStyle(color: isMe ? Colors.white : Colors.black)),
+                    Widget bubble = Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isMe ? Colors.blue : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: Text(message.text ?? '', style: TextStyle(color: isMe ? Colors.white : Colors.black)),
                     );
+
+                    if (isMe) {
+                      return Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            bubble,
+                            const SizedBox(width: 6),
+                            Icon(Icons.done_all, size: 16, color: seen ? Colors.green : Colors.grey),
+                          ],
+                        ),
+                      );
+                    } else {
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!seen) ...[
+                              Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 6), decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+                            ],
+                            bubble,
+                          ],
+                        ),
+                      );
+                    }
                   },
                 );
               },

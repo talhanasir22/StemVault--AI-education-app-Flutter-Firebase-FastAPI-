@@ -55,11 +55,13 @@ class _HomePageState extends State<HomePage> {
         progress = timeSpentInSeconds / 3600; // Convert seconds to hours for progress (max 60 minutes)
       });
 
-      // Fetch the student ID (sid) from Firestore
-      String? studentId = FirebaseAuth.instance.currentUser! as String?;
+      // Fetch the student ID (uid) from the Firebase user
+      String? studentId = FirebaseAuth.instance.currentUser?.uid;
       if (studentId != null) {
-        // Store the time spent today
-        await db.updateStudentTimeSpent(studentId, timeSpentInSeconds);
+        // To avoid excessive writes, update backend once per minute
+        if (timeSpentInSeconds % 60 == 0) {
+          await db.updateStudentTimeSpent(studentId, timeSpentInSeconds);
+        }
       }
     });
   }

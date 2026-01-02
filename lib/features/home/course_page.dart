@@ -15,7 +15,8 @@ class CoursePage extends StatefulWidget {
   State<CoursePage> createState() => _CoursePageState();
 }
 
-class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateMixin {
+class _CoursePageState extends State<CoursePage>
+    with SingleTickerProviderStateMixin {
   String? selectedCategory;
   String? selectedDuration;
   late TabController _tabController;
@@ -28,7 +29,10 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
   String sid = FirebaseAuth.instance.currentUser!.uid;
 
   final List<String> categories = [
-    'SCIENCE', 'TECHNOLOGY', 'ENGINEERING','MATH'
+    'SCIENCE',
+    'TECHNOLOGY',
+    'ENGINEERING',
+    'MATH',
   ];
 
   final List<String> durations = [
@@ -37,9 +41,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     "8-14 Hours",
     "14-20 Hours",
     "20-24 Hours",
-    "24-30 Hours"
+    "24-30 Hours",
   ];
-
 
   @override
   void initState() {
@@ -59,10 +62,12 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
 
     try {
       // Firestore references
-      DocumentReference courseRef =
-      FirebaseFirestore.instance.collection('courses').doc(courseId);
-      DocumentReference studentRef =
-      FirebaseFirestore.instance.collection('students').doc(studentId);
+      DocumentReference courseRef = FirebaseFirestore.instance
+          .collection('courses')
+          .doc(courseId);
+      DocumentReference studentRef = FirebaseFirestore.instance
+          .collection('students')
+          .doc(studentId);
 
       // Fetch documents
       DocumentSnapshot courseSnapshot = await courseRef.get();
@@ -108,10 +113,9 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     }
   }
 
-
-
-
-  Future<List<Map<String, dynamic>>> fetchCoursesWithTeachers({String? query}) async {
+  Future<List<Map<String, dynamic>>> fetchCoursesWithTeachers({
+    String? query,
+  }) async {
     String? selectedTag;
     if (_tabController.index > 0) {
       selectedTag = categories[_tabController.index - 1];
@@ -123,7 +127,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     }
 
     final courseSnapshot = await courseQuery.get();
-    final teacherSnapshot = await FirebaseFirestore.instance.collection('teachers').get();
+    final teacherSnapshot =
+        await FirebaseFirestore.instance.collection('teachers').get();
 
     final teacherMap = {
       for (var doc in teacherSnapshot.docs) doc['tid']: doc['userName'],
@@ -133,7 +138,9 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     cidList.clear();
 
     for (var course in courseSnapshot.docs) {
-      final enrolledStudents = List<String>.from(course['enrolledStudents'] ?? []);
+      final enrolledStudents = List<String>.from(
+        course['enrolledStudents'] ?? [],
+      );
 
       // Skip course if current student is already enrolled
       if (enrolledStudents.contains(sid)) continue;
@@ -155,9 +162,6 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     return mergedList;
   }
 
-
-
-
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -166,7 +170,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return StatefulBuilder( // Maintains state when reopened
+        return StatefulBuilder(
+          // Maintains state when reopened
           builder: (context, setModalState) {
             return Padding(
               padding: const EdgeInsets.all(16.0),
@@ -179,10 +184,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     Center(
                       child: Text(
                         "Search Filter",
-                        style: AppText.mainHeadingTextStyle().copyWith(
-                          fontWeight: FontWeight.w400,
-                          fontSize: 22
-                        )
+                        style: AppText.mainHeadingTextStyle()
+                            .copyWith(fontWeight: FontWeight.w400, fontSize: 22)
                             .copyWith(color: AppColors.theme),
                       ),
                     ),
@@ -198,33 +201,39 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     Wrap(
                       spacing: 12,
                       runSpacing: 8,
-                      children: categories.map((category) {
-                        bool isSelected = category == selectedCategory;
-                        return GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              selectedCategory =
-                              isSelected ? null : category;
-                            });
-                          },
-                          child: Container(
-                            padding:
-                            EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.black : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.bgColor),
-                            ),
-                            child: Text(
-                              category,
-                              style: TextStyle(
-                                color:
-                                isSelected ? AppColors.bgColor : Colors.black,
+                      children:
+                          categories.map((category) {
+                            bool isSelected = category == selectedCategory;
+                            return GestureDetector(
+                              onTap: () {
+                                setModalState(() {
+                                  selectedCategory =
+                                      isSelected ? null : category;
+                                });
+                              },
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected ? Colors.black : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.bgColor),
+                                ),
+                                child: Text(
+                                  category,
+                                  style: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? AppColors.bgColor
+                                            : Colors.black,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -238,33 +247,41 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     Wrap(
                       spacing: 12,
                       runSpacing: 8,
-                      children: durations.map((duration) {
-                        bool isSelected = duration == selectedDuration;
-                        return GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              selectedDuration =
-                              isSelected ? null : duration; // Toggle selection
-                            });
-                          },
-                          child: Container(
-                            padding:
-                            EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.black : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.bgColor),
-                            ),
-                            child: Text(
-                              duration,
-                              style: TextStyle(
-                                color:
-                                isSelected ? AppColors.bgColor : Colors.black,
+                      children:
+                          durations.map((duration) {
+                            bool isSelected = duration == selectedDuration;
+                            return GestureDetector(
+                              onTap: () {
+                                setModalState(() {
+                                  selectedDuration =
+                                      isSelected
+                                          ? null
+                                          : duration; // Toggle selection
+                                });
+                              },
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected ? Colors.black : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.bgColor),
+                                ),
+                                child: Text(
+                                  duration,
+                                  style: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? AppColors.bgColor
+                                            : Colors.black,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                     const SizedBox(height: 50),
                     Row(
@@ -276,17 +293,19 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                               Navigator.pop(context); // Close the modal
                             },
                             style: ElevatedButton.styleFrom(
-                              side: BorderSide(
-                                width: 1
+                              side: BorderSide(width: 1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               backgroundColor: AppColors.bgColor,
                             ),
-                            child: Text("Clear",
-                            style: TextStyle(color: Colors.black),),
+                            child: Text(
+                              "Clear",
+                              style: TextStyle(color: Colors.black),
+                            ),
                           ),
                         ),
-                        SizedBox(width: 20,),
+                        SizedBox(width: 20),
                         SizedBox(
                           width: 200,
                           child: ElevatedButton(
@@ -295,10 +314,14 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            child: Text("Apply Filter",
-                            style: TextStyle(color: AppColors.bgColor),),
+                            child: Text(
+                              "Apply Filter",
+                              style: TextStyle(color: AppColors.bgColor),
+                            ),
                           ),
                         ),
                       ],
@@ -342,10 +365,16 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                   contentPadding: EdgeInsets.symmetric(vertical: 10),
                   hintText: "Find Course",
                   hintStyle: AppText.hintTextStyle(),
-                  prefixIcon: Icon(Icons.search, color: AppColors.hintIconColor),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: AppColors.hintIconColor,
+                  ),
                   suffixIcon: IconButton(
                     onPressed: _showFilterBottomSheet,
-                    icon: Icon(Icons.tune_rounded, color: AppColors.hintIconColor),
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      color: AppColors.hintIconColor,
+                    ),
                   ),
                   filled: true,
                   fillColor: AppColors.textFieldColor,
@@ -356,9 +385,15 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
               ),
             ),
           ),
-         CourseAnnouncementBanner(bannerText: "Explore a diverse selection of STEM courses for a comprehensive learning experience.",),
+          CourseAnnouncementBanner(
+            bannerText:
+                "Explore a diverse selection of STEM courses for a comprehensive learning experience.",
+          ),
           Padding(
-            padding: const EdgeInsets.only(top: 15.0, bottom: 10), // Added bottom padding
+            padding: const EdgeInsets.only(
+              top: 15.0,
+              bottom: 10,
+            ), // Added bottom padding
             child: SizedBox(
               height: 30, // Adjust height as needed
               child: ListView.builder(
@@ -370,7 +405,7 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     "Science",
                     "Technology",
                     "Engineering",
-                    "Mathematics"
+                    "Mathematics",
                   ];
                   return Padding(
                     padding: EdgeInsets.only(
@@ -387,11 +422,14 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                       },
 
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _tabController.index == index
-                            ? Colors.black
-                            : Colors.white,
+                        backgroundColor:
+                            _tabController.index == index
+                                ? Colors.black
+                                : Colors.white,
                         foregroundColor:
-                        _tabController.index == index ? Colors.white : Colors.black,
+                            _tabController.index == index
+                                ? Colors.white
+                                : Colors.black,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -403,7 +441,7 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
               ),
             ),
           ),
-          SizedBox(height: 15,),
+          SizedBox(height: 15),
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               key: ValueKey(selectedTabIndex),
@@ -425,8 +463,16 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          title: Container(height: 10, width: 100, color: Colors.white),
-                          subtitle: Container(height: 10, width: 150, color: Colors.white),
+                          title: Container(
+                            height: 10,
+                            width: 100,
+                            color: Colors.white,
+                          ),
+                          subtitle: Container(
+                            height: 10,
+                            width: 150,
+                            color: Colors.white,
+                          ),
                         ),
                       );
                     },
@@ -445,7 +491,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                     var course = courseList[index];
                     var title = course['courseTitle'];
                     var imageUrl = course['thumbnailUrl'];
-                    var teacherName = course['teacherName'] ?? 'Unknown Teacher';
+                    var teacherName =
+                        course['teacherName'] ?? 'Unknown Teacher';
 
                     return Card(
                       color: AppColors.theme,
@@ -464,14 +511,17 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                             ),
                           ),
                         ),
-                        title: Text(title,style:AppText.mainSubHeadingTextStyle().copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        )),
-                        subtitle:  Row(
+                        title: Text(
+                          title,
+                          style: AppText.mainSubHeadingTextStyle().copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Row(
                           children: [
-                            Icon(Icons.person,size: 12,),
-                            SizedBox(width: 5,),
+                            Icon(Icons.person, size: 12),
+                            SizedBox(width: 5),
                             Flexible(
                               child: Text(
                                 teacherName,
@@ -479,15 +529,18 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                                 style: TextStyle(fontSize: 12),
                               ),
                             ),
-                           Spacer(),
+                            Spacer(),
                             Container(
                               decoration: BoxDecoration(
                                 color: Color(0xffFFEBF0),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               width: 40,
-                              child: Text(' 0-2h',style: TextStyle(color: Color(0xffFF6905)),),
-                            )
+                              child: Text(
+                                ' 0-2h',
+                                style: TextStyle(color: Color(0xffFF6905)),
+                              ),
+                            ),
                           ],
                         ),
                         trailing: SizedBox(
@@ -496,13 +549,8 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                           child: ElevatedButton(
                             onPressed: () async {
                               String studentId = sid;
-                              print("db db db"); // Replace with actual student ID]
-                              print(cidList[index]);
-                              print("sr sr sr");
-                              String courseId = cidList[index];  // The course's ID from the course list
-                              print("Tap tap tpa");
-                              print("Course id is: $courseId");
-                              print("Student id is: $studentId");
+                              String courseId = cidList[index];
+                              // Directly enroll without payment
                               await enrollStudent(courseId, studentId);
                             },
                             style: ElevatedButton.styleFrom(
@@ -518,21 +566,13 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                             ),
                           ),
                         ),
-
-                      )
+                      ),
                     );
                   },
                 );
               },
             ),
           ),
-
-
-
-
-
-
-
         ],
       ),
     );

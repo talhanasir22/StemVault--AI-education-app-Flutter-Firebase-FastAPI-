@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../Core/appColors.dart';
 import '../Core/apptext.dart';
 import '../features/Teacher home/Account Screens/account_page.dart';
@@ -19,6 +20,7 @@ class TeacherBottomNavBar extends StatefulWidget {
 
 class _TeacherBottomNavBarState extends State<TeacherBottomNavBar> {
   late int _selectedIndex;
+  DateTime? currentBackPressTime;
 
   @override
   void initState() {
@@ -46,83 +48,110 @@ class _TeacherBottomNavBarState extends State<TeacherBottomNavBar> {
       _selectedIndex = index;
     });
   }
+
+  Future<bool> _onWillPop() async {
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+      return false;
+    }
+
+    DateTime now = DateTime.now();
+    if (currentBackPressTime == null ||
+        now.difference(currentBackPressTime!) > Duration(seconds: 2)) {
+      currentBackPressTime = now;
+      Fluttertoast.showToast(
+        msg: "Press back again to exit",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.black54,
+        textColor: Colors.white,
+      );
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          resizeToAvoidBottomInset: false,
-          body: _pages[_selectedIndex],
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Stack(
+        children: [
+          Scaffold(
+            resizeToAvoidBottomInset: false,
+            body: _pages[_selectedIndex],
 
-          bottomNavigationBar: Theme(
-            data: Theme.of(context).copyWith(
-              splashFactory: NoSplash.splashFactory,
-              highlightColor: Colors.transparent,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    spreadRadius: 1,
-                    offset: Offset(0, -2), // Shadow on top of navbar
-                  ),
-                ],
+            bottomNavigationBar: Theme(
+              data: Theme.of(context).copyWith(
+                splashFactory: NoSplash.splashFactory,
+                highlightColor: Colors.transparent,
               ),
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.white,
-                selectedLabelStyle: AppText.navSelectedLabelTextStyle(),
-                unselectedLabelStyle: AppText.navUnSelectedLabelTextStyle(),
-                selectedItemColor: AppColors.bgColor,
-                unselectedItemColor: Colors.black,
-                currentIndex: _selectedIndex,
-                onTap: _onItemTapped,
-                elevation: 0,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home, size: 22),
-                    label: "Home",
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.menu_book, size: 22),
-                    label: "Course",
-                  ),
-                  BottomNavigationBarItem(
-                    icon: SizedBox.shrink(),
-                    label: "",
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.chat, size: 22),
-                    label: "Message",
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person, size: 22),
-                    label: "Profile",
-                  ),
-                ],
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                      offset: Offset(0, -2), // Shadow on top of navbar
+                    ),
+                  ],
+                ),
+                child: BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.white,
+                  selectedLabelStyle: AppText.navSelectedLabelTextStyle(),
+                  unselectedLabelStyle: AppText.navUnSelectedLabelTextStyle(),
+                  selectedItemColor: AppColors.bgColor,
+                  unselectedItemColor: Colors.black,
+                  currentIndex: _selectedIndex,
+                  onTap: _onItemTapped,
+                  elevation: 0,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home, size: 22),
+                      label: "Home",
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.menu_book, size: 22),
+                      label: "Course",
+                    ),
+                    BottomNavigationBarItem(icon: SizedBox.shrink(), label: ""),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.chat, size: 22),
+                      label: "Message",
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person, size: 22),
+                      label: "Profile",
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: MediaQuery.of(context).size.width / 2 - 28,
-          child: FloatingActionButton(
-            backgroundColor: AppColors.theme,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => EnrolledStudentPage()),
-              );
-            },
-            shape: CircleBorder(side: BorderSide(color: Colors.grey)),
-            child: Icon(Icons.school, color: Colors.black, size: 25),
+          Positioned(
+            bottom: 20,
+            left: MediaQuery.of(context).size.width / 2 - 28,
+            child: FloatingActionButton(
+              backgroundColor: AppColors.theme,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EnrolledStudentPage(),
+                  ),
+                );
+              },
+              shape: CircleBorder(side: BorderSide(color: Colors.grey)),
+              child: Icon(Icons.school, color: Colors.black, size: 25),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

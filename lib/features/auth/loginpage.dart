@@ -238,6 +238,7 @@ class _LoginPageState extends State<LoginPage> {
                             });
 
                             try {
+                              await _auth.signOut();
                               final user = await _auth.studentSignInWithGoogle();
 
                               if (user != null) {

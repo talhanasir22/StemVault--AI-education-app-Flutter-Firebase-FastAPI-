@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:stem_vault/Data/Cloudinary/cloudinary_service.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,7 +11,6 @@ import 'package:stem_vault/Shared/course_annoucement_banner.dart';
 
 import '../../Data/Firebase/student_services/course_model.dart';
 import '../../Data/Firebase/student_services/firestore_services.dart';
-import '../../Shared/LoadingIndicator.dart';
 
 class CoursePage extends StatefulWidget {
   const CoursePage({super.key});
@@ -20,9 +19,11 @@ class CoursePage extends StatefulWidget {
   State<CoursePage> createState() => _CoursePageState();
 }
 
-class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateMixin {
+class _CoursePageState extends State<CoursePage>
+    with SingleTickerProviderStateMixin {
   String? selectedCategory;
   String? selectedDuration;
+  bool _isLoading = false;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
@@ -31,26 +32,22 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
 
   File? _selectedImage;
 
-  final List<String> _tags = ['MATH', 'SCIENCE', 'ENGINEERING', 'TECHNOLOGY'];
+  final List<String> _tags = ['DSA', 'OOP'];
 
   Widget _buildTagDropdown() {
     return DropdownButtonFormField<String>(
       value: selectedCategory,
-      items: _tags.map((tag) {
-        return DropdownMenuItem<String>(
-          value: tag,
-          child: Text(tag),
-        );
-      }).toList(),
+      items:
+          _tags.map((tag) {
+            return DropdownMenuItem<String>(value: tag, child: Text(tag));
+          }).toList(),
       onChanged: (value) {
         setState(() {
           selectedCategory = value;
         });
       },
       decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       validator: (value) => value == null ? "Please select a course tag" : null,
     );
@@ -71,7 +68,9 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
               onTap: () async {
                 Navigator.pop(context);
                 final ImagePicker picker = ImagePicker();
-                final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                final XFile? pickedFile = await picker.pickImage(
+                  source: ImageSource.gallery,
+                );
                 _validatePickedFile(pickedFile);
               },
             ),
@@ -81,7 +80,9 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
               onTap: () async {
                 Navigator.pop(context);
                 final ImagePicker picker = ImagePicker();
-                final XFile? pickedFile = await picker.pickImage(source: ImageSource.camera); // For file manager use same gallery API
+                final XFile? pickedFile = await picker.pickImage(
+                  source: ImageSource.camera,
+                ); // For file manager use same gallery API
                 _validatePickedFile(pickedFile);
               },
             ),
@@ -111,7 +112,6 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,118 +130,144 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
             spacing: 2,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: CourseAnnouncementBanner(bannerText: "Explore a diverse selection of STEM courses for a comprehensive learning experience.",)),
-              Center(child: Text("Add your Course",style: AppText.mainHeadingTextStyle().copyWith(fontSize: 19))),
-              SizedBox(height: 10,),
+              Center(
+                child: CourseAnnouncementBanner(
+                  bannerText:
+                      "Explore a diverse selection of STEM courses for a comprehensive learning experience.",
+                ),
+              ),
+              Center(
+                child: Text(
+                  "Add your Course",
+                  style: AppText.mainHeadingTextStyle().copyWith(fontSize: 19),
+                ),
+              ),
+              SizedBox(height: 10),
 
               _buildLabel('Course title'),
               _buildTextField(controller: _titleController),
 
               _buildLabel("Course description"),
-              _buildTextField(controller: _descriptionController, maxLines: 3, maxlenght: 100),
+              _buildTextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                maxlenght: 100,
+              ),
               _buildLabel("Course Tag"),
               _buildTagDropdown(),
-              SizedBox(height: 10,),
+              SizedBox(height: 10),
               _buildLabel("Course thumbnail:"),
-              SizedBox(height: 10,),
+              SizedBox(height: 10),
               GestureDetector(
                 onTap: _pickImage,
                 child: Row(
                   spacing: 10,
                   children: [
-                    Icon(Icons.camera_alt,size: 30,),
+                    Icon(Icons.camera_alt, size: 30),
                     SizedBox(
-                        width: 200,
-                        child: _selectedImage == null ? Text("Select thumbnail",
-                          style: AppText.hintTextStyle(),
-                        ): Text(_selectedImage.toString(),maxLines: 1,overflow: TextOverflow.ellipsis,)
-                    )
+                      width: 200,
+                      child:
+                          _selectedImage == null
+                              ? Text(
+                                "Select thumbnail",
+                                style: AppText.hintTextStyle(),
+                              )
+                              : Text(
+                                _selectedImage.toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                    ),
                   ],
                 ),
               ),
 
-              SizedBox(height: 10,),
+              SizedBox(height: 10),
               Center(
                 child: ElevatedButton(
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      if (_selectedImage == null) {
-                        Fluttertoast.showToast(
-                          msg: "Please select a course thumbnail.",
-                          toastLength: Toast.LENGTH_SHORT,
-                          gravity: ToastGravity.BOTTOM,
-                          backgroundColor: Colors.red,
-                          textColor: Colors.white,
-                        );
-                        return;
-                      }
-                      if (selectedCategory == null) {
-                        Fluttertoast.showToast(
-                          msg: "Please select a course tag.",
-                          toastLength: Toast.LENGTH_SHORT,
-                          gravity: ToastGravity.BOTTOM,
-                          backgroundColor: Colors.red,
-                          textColor: Colors.white,
-                        );
-                        return;
-                      }
+                  onPressed:
+                      _isLoading
+                          ? null
+                          : () async {
+                            if (_formKey.currentState!.validate()) {
+                              if (_selectedImage == null) {
+                                Fluttertoast.showToast(
+                                  msg: "Please select a course thumbnail.",
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.BOTTOM,
+                                  backgroundColor: Colors.red,
+                                  textColor: Colors.white,
+                                );
+                                return;
+                              }
+                              if (selectedCategory == null) {
+                                Fluttertoast.showToast(
+                                  msg: "Please select a course tag.",
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.BOTTOM,
+                                  backgroundColor: Colors.red,
+                                  textColor: Colors.white,
+                                );
+                                return;
+                              }
 
-                      // Start Loading
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (_) => LoadingIndicator(),
-                      );
+                              setState(() {
+                                _isLoading = true;
+                              });
 
-                      try {
-                        // Upload image to Firebase Storage
-                        String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-                        final ref = FirebaseStorage.instance.ref().child('course_thumbnails/$fileName');
-                        await ref.putFile(_selectedImage!);
-                        String imageUrl = await ref.getDownloadURL();
+                              try {
+                                // Upload image to Cloudinary
+                                String imageUrl =
+                                    await CloudinaryService.uploadFile(
+                                      _selectedImage!,
+                                      resourceType: 'image',
+                                    );
 
-                        // Create CourseModel
-                        CourseModel course = CourseModel(
-                          cid: courseId,
-                          courseTitle: _titleController.text.trim(),
-                          courseDescription: _descriptionController.text.trim(),
-                          tag: selectedCategory!,
-                          thumbnailUrl: imageUrl,
-                          tid: FirebaseAuth.instance.currentUser!.uid,
-                          // add other required fields
-                        );
+                                // Create CourseModel
+                                CourseModel course = CourseModel(
+                                  cid: courseId,
+                                  courseTitle: _titleController.text.trim(),
+                                  courseDescription:
+                                      _descriptionController.text.trim(),
+                                  tag: selectedCategory!,
+                                  thumbnailUrl: imageUrl,
+                                  tid: FirebaseAuth.instance.currentUser!.uid,
+                                  // add other required fields
+                                );
 
-                        // Save Course to Firestore
-                        await FirestoreServices().createCourse(course);
+                                // Save Course to Firestore
+                                await FirestoreServices().createCourse(course);
 
-                        // Hide Loading
-                        Navigator.pop(context);
-
-                        // Show Success Toast
-                        Fluttertoast.showToast(
-                          msg: "Course Created Successfully!",
-                          toastLength: Toast.LENGTH_SHORT,
-                          gravity: ToastGravity.BOTTOM,
-                          backgroundColor: Colors.green,
-                          textColor: Colors.white,
-                        );
-                        _titleController.clear();
-                        _descriptionController.clear();
-                        _selectedImage = null;
-
-
-                      } catch (e) {
-                        Navigator.pop(context); // Hide loading
-                        Fluttertoast.showToast(
-                          msg: "Error creating course: $e",
-                          toastLength: Toast.LENGTH_LONG,
-                          gravity: ToastGravity.BOTTOM,
-                          backgroundColor: Colors.red,
-                          textColor: Colors.white,
-                        );
-                      }
-                    }
-                  },
+                                // Show Success Toast
+                                Fluttertoast.showToast(
+                                  msg: "Course Created Successfully!",
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.BOTTOM,
+                                  backgroundColor: Colors.green,
+                                  textColor: Colors.white,
+                                );
+                                _titleController.clear();
+                                _descriptionController.clear();
+                                setState(() {
+                                  _selectedImage = null;
+                                });
+                              } catch (e) {
+                                Fluttertoast.showToast(
+                                  msg: "Error creating course: $e",
+                                  toastLength: Toast.LENGTH_LONG,
+                                  gravity: ToastGravity.BOTTOM,
+                                  backgroundColor: Colors.red,
+                                  textColor: Colors.white,
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isLoading = false;
+                                  });
+                                }
+                              }
+                            }
+                          },
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.bgColor,
@@ -250,12 +276,25 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text("Create Course",style: AppText.buttonTextStyle().copyWith(
-                      color: AppColors.theme
-                  ),),
+                  child:
+                      _isLoading
+                          ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: AppColors.theme,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : Text(
+                            "Create Course",
+                            style: AppText.buttonTextStyle().copyWith(
+                              color: AppColors.theme,
+                            ),
+                          ),
                 ),
               ),
-              SizedBox(height: 40,),
+              SizedBox(height: 40),
             ],
           ),
         ),
@@ -266,11 +305,17 @@ class _CoursePageState extends State<CoursePage> with SingleTickerProviderStateM
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: AppText.mainSubHeadingTextStyle().copyWith(fontWeight: FontWeight.bold),
+      style: AppText.mainSubHeadingTextStyle().copyWith(
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, int maxLines = 1, int maxlenght = 20}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    int maxLines = 1,
+    int maxlenght = 20,
+  }) {
     return SizedBox(
       width: MediaQuery.of(context).size.width * 0.95,
       child: Column(

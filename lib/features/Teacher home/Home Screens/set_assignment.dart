@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart'; // <-- Add this import
-import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:stem_vault/Data/Cloudinary/cloudinary_service.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
@@ -95,11 +95,8 @@ class _SetAssignmentState extends State<SetAssignment> {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      // Upload the PDF file to Firebase Storage
-      String fileName = "assignmentsByTeacher/${DateTime.now().millisecondsSinceEpoch}_${_selectedFile!.path.split('/').last}";
-      var storageRef = firebase_storage.FirebaseStorage.instance.ref().child(fileName);
-      await storageRef.putFile(_selectedFile!);
-      String fileUrl = await storageRef.getDownloadURL();
+      // Upload the PDF file to Cloudinary
+      String fileUrl = await CloudinaryService.uploadFile(_selectedFile!, resourceType: 'raw');
 
       // Create new Assignment document
       DocumentReference assignmentRef = firestore.collection('assignment').doc();
@@ -153,7 +150,7 @@ class _SetAssignmentState extends State<SetAssignment> {
     } catch (e) {
       print(e.toString());
       Fluttertoast.showToast(
-        msg: "Error uploading assignment.",
+        msg: "Error uploading assignment: $e",
         backgroundColor: Colors.red,
         textColor: Colors.white,
       );

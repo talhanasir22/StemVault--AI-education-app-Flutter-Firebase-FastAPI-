@@ -4,9 +4,10 @@ import 'package:open_filex/open_filex.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:stem_vault/Data/Cloudinary/cloudinary_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:stem_vault/Core/appColors.dart';
@@ -22,6 +23,7 @@ class AssignmentScreen extends StatefulWidget {
 class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Map<String, dynamic>> incompleteAssignments = [];
+  List<Map<String, dynamic>> completedAssignments = [];
   bool isLoading = true;
 
   @override
@@ -29,6 +31,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     fetchAssignments();
+    fetchCompletedAssignments();
   }
 
   @override
@@ -57,14 +60,24 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
             final teacherDoc = await FirebaseFirestore.instance.collection('teachers').doc(tid).get();
 
             if (teacherDoc.exists) {
+              // Normalize fields and format due date
+              DateTime? dueDateTime;
+              try {
+                dueDateTime = (data['dueDate'] as Timestamp).toDate();
+              } catch (_) {
+                dueDateTime = null;
+              }
+
               fetchedAssignments.add({
+                'assignmentId': assignmentDoc.id,
                 'title': data['title'],
-                'dueDate': data['dueDate'],
+                'dueDate': dueDateTime != null ? DateFormat.yMMMd().format(dueDateTime) : data['dueDate'].toString(),
+                'dueDateRaw': dueDateTime,
                 'dueTime': data['dueTime'],
                 'totalMarks': data['totalMarks'],
                 'teacherName': teacherDoc['userName'],
                 'courseName': courseDoc['courseTitle'],
-                'pdfUrl': data['pdfUrl'],
+                'assignmentUrl': data['assignmentUrl'] ?? data['pdfUrl'] ?? '',
               });
             }
           }
@@ -78,6 +91,77 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
     } catch (e) {
       print("Error fetching assignments: $e");
       setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> fetchCompletedAssignments() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final studentDoc = await FirebaseFirestore.instance.collection('students').doc(uid).get();
+      final assignmentIds = List<String>.from(studentDoc.data()?['completedAssignments'] ?? []);
+      List<Map<String, dynamic>> fetched = [];
+
+      for (String assignmentId in assignmentIds) {
+        final assignmentDoc = await FirebaseFirestore.instance.collection('assignment').doc(assignmentId).get();
+        if (assignmentDoc.exists) {
+          final data = assignmentDoc.data()!;
+          final cid = data['cid'];
+          final courseQuery = await FirebaseFirestore.instance.collection('courses').where('cid', isEqualTo: cid).get();
+          if (courseQuery.docs.isNotEmpty) {
+            final courseDoc = courseQuery.docs.first;
+            final tid = courseDoc['tid'];
+            final teacherDoc = await FirebaseFirestore.instance.collection('teachers').doc(tid).get();
+
+            DateTime? dueDateTime;
+            try {
+              dueDateTime = (data['dueDate'] as Timestamp).toDate();
+            } catch (_) {
+              dueDateTime = null;
+            }
+
+            // get grade and feedback for this student from assignment doc
+            String grade = '';
+            String feedback = '';
+            try {
+              final gradesMap = Map<String, dynamic>.from(data['grades'] ?? {});
+              final feedbacksMap = Map<String, dynamic>.from(data['feedbacks'] ?? {});
+              grade = gradesMap[uid]?.toString() ?? '';
+              feedback = feedbacksMap[uid]?.toString() ?? '';
+            } catch (_) {}
+
+            // find this student's submission url if present
+            String submissionUrl = '';
+            try {
+              final submissions = List.from(data['submissions'] ?? []);
+              for (var s in submissions) {
+                if (s is Map && s['studentId'] == uid) {
+                  submissionUrl = s['url'] ?? '';
+                  break;
+                }
+              }
+            } catch (_) {}
+
+            fetched.add({
+              'assignmentId': assignmentDoc.id,
+              'title': data['title'],
+              'dueDate': dueDateTime != null ? DateFormat.yMMMd().format(dueDateTime) : data['dueDate']?.toString() ?? '',
+              'totalMarks': data['totalMarks'],
+              'teacherName': teacherDoc['userName'],
+              'courseName': courseDoc['courseTitle'],
+              'assignmentUrl': data['assignmentUrl'] ?? data['pdfUrl'] ?? '',
+              'grade': grade,
+              'feedback': feedback,
+              'submissionUrl': submissionUrl,
+            });
+          }
+        }
+      }
+
+      setState(() {
+        completedAssignments = fetched;
+      });
+    } catch (e) {
+      print('Error fetching completed assignments: $e');
     }
   }
 
@@ -115,27 +199,33 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
         final uid = FirebaseAuth.instance.currentUser!.uid;
-        final fileName = '${assignment['title']}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-        final ref = FirebaseStorage.instance.ref().child('completedAssignment/$fileName');
-        await ref.putFile(file);
-        final url = await ref.getDownloadURL();
+        final url = await CloudinaryService.uploadFile(file, resourceType: 'raw');
 
         final studentRef = FirebaseFirestore.instance.collection('students').doc(uid);
-        await studentRef.update({
-          'completedAssignment': FieldValue.arrayUnion([url])
-        });
 
-        final courseSnap = await FirebaseFirestore.instance
-            .collection('courses')
-            .where('courseTitle', isEqualTo: assignment['courseName'])
-            .get();
+        // Remove from incompleteAssignments and add to completedAssignments for the student
+        if (assignment.containsKey('assignmentId')) {
+          final aid = assignment['assignmentId'];
+          await studentRef.update({
+            'incompleteAssignments': FieldValue.arrayRemove([aid]),
+            'completedAssignments': FieldValue.arrayUnion([aid]),
+          });
 
-        if (courseSnap.docs.isNotEmpty) {
-          final tid = courseSnap.docs.first['tid'];
-          final teacherRef = FirebaseFirestore.instance.collection('teachers').doc(tid);
-          await teacherRef.update({
-            'completedAssignment': FieldValue.arrayUnion([url])
+          // Record submission on the assignment document for teacher review
+          await FirebaseFirestore.instance.collection('assignment').doc(aid).update({
+            'submissions': FieldValue.arrayUnion([
+              {
+                'studentId': uid,
+                'url': url,
+                'submittedOn': Timestamp.now(),
+              }
+            ])
+          });
+        } else {
+          // Fallback: if no assignmentId available, still store the uploaded file under student's completed list
+          await studentRef.update({
+            'completedAssignments': FieldValue.arrayUnion([url])
           });
         }
 
@@ -146,7 +236,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
     } catch (e) {
       print("Upload failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Upload failed.")),
+        SnackBar(content: Text("Upload failed: $e")),
       );
     }
   }
@@ -206,8 +296,8 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                smallBlueButton(Icons.open_in_new, "Open", () => openPdf(context, assignment['pdfUrl'])),
-                smallBlueButton(Icons.download, "Download", () => downloadPdf(assignment['pdfUrl'])),
+                smallBlueButton(Icons.open_in_new, "Open", () => openPdf(context, assignment['assignmentUrl'])),
+                smallBlueButton(Icons.download, "Download", () => downloadPdf(assignment['assignmentUrl'])),
                 smallBlueButton(Icons.upload, "Upload", () => uploadAssignment(assignment)),
               ],
             ),
@@ -231,7 +321,55 @@ class _AssignmentScreenState extends State<AssignmentScreen> with SingleTickerPr
   }
 
   Widget buildCompletedTab() {
-    return const Center(child: Text("Completed assignments UI coming soon..."));
+    if (completedAssignments.isEmpty) return const Center(child: Text("No completed assignments found."));
+
+    return ListView.builder(
+      itemCount: completedAssignments.length,
+      itemBuilder: (context, index) {
+        final a = completedAssignments[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Title: ${a['title']}", style: AppText.mainHeadingTextStyle()),
+                Text("Course: ${a['courseName']}"),
+                Text("Teacher: ${a['teacherName']}"),
+                Text("Total Marks: ${a['totalMarks'] ?? ''}"),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: a['submissionUrl'] != null && a['submissionUrl'] != '' ? () => openPdf(context, a['submissionUrl']) : null,
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('View Submission'),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.bgColor),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: a['submissionUrl'] != null && a['submissionUrl'] != '' ? () => downloadPdf(a['submissionUrl']) : null,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Download'),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.bgColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text('Grade: ${a['grade'] != null && a['grade'] != '' ? a['grade'] : 'Not graded yet'}'),
+                if (a['feedback'] != null && a['feedback'] != '') ...[
+                  const SizedBox(height: 6),
+                  Text('Feedback: ${a['feedback']}'),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
